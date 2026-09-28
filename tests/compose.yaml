@@ -1,0 +1,46 @@
+name: dbx-rocketmq-console-tests
+services:
+  namesrv4:
+    image: apache/rocketmq:4.9.7
+    command: sh mqnamesrv
+    environment:
+      JAVA_OPT_EXT: -Xms128m -Xmx128m -Xmn64m -XX:-UseContainerSupport
+    ports: ["127.0.0.1:19876:9876"]
+  broker4:
+    image: apache/rocketmq:4.9.7
+    command: sh mqbroker -n namesrv4:9876 -c /test/broker.conf
+    environment:
+      JAVA_OPT_EXT: -Xms256m -Xmx256m -Xmn128m -XX:-UseContainerSupport
+    volumes: ["./broker4.conf:/test/broker.conf:ro"]
+    ports: ["127.0.0.1:20911:20911", "127.0.0.1:20909:20909"]
+    depends_on: [namesrv4]
+  namesrv5:
+    image: apache/rocketmq:5.3.3
+    command: sh mqnamesrv
+    environment:
+      JAVA_OPT_EXT: -Xms128m -Xmx128m -Xmn64m -XX:-UseContainerSupport
+    ports: ["127.0.0.1:29876:9876"]
+  broker5:
+    image: apache/rocketmq:5.3.3
+    command: sh mqbroker -n namesrv5:9876 -c /test/broker.conf
+    environment:
+      JAVA_OPT_EXT: -Xms256m -Xmx256m -Xmn128m -XX:-UseContainerSupport
+    volumes: ["./broker5.conf:/test/broker.conf:ro"]
+    ports: ["127.0.0.1:30911:30911", "127.0.0.1:30909:30909"]
+    depends_on: [namesrv5]
+  namesrv-auth:
+    image: apache/rocketmq:4.9.7
+    command: sh mqnamesrv
+    environment:
+      JAVA_OPT_EXT: -Xms128m -Xmx128m -Xmn64m -XX:-UseContainerSupport
+    ports: ["127.0.0.1:39876:9876"]
+  broker-auth:
+    image: apache/rocketmq:4.9.7
+    command: sh mqbroker -n namesrv-auth:9876 -c /test/broker.conf
+    environment:
+      JAVA_OPT_EXT: -Xms256m -Xmx256m -Xmn128m -XX:-UseContainerSupport
+    volumes:
+      - ./broker-auth.conf:/test/broker.conf:ro
+      - ./plain_acl.yml:/home/rocketmq/rocketmq-4.9.7/conf/plain_acl.yml:ro
+    ports: ["127.0.0.1:40911:40911", "127.0.0.1:40909:40909"]
+    depends_on: [namesrv-auth]

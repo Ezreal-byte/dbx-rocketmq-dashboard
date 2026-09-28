@@ -1,0 +1,200 @@
+[
+  {
+    "module": "github.com/amigoer/rocketmq-admin-go",
+    "version": "v1.1.1",
+    "files": [
+      "licenses/github.com_amigoer_rocketmq-admin-go/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/apache/rocketmq-client-go/v2",
+    "version": "v2.1.2",
+    "files": [
+      "licenses/github.com_apache_rocketmq-client-go_v2/LICENSE",
+      "licenses/github.com_apache_rocketmq-client-go_v2/NOTICE"
+    ]
+  },
+  {
+    "module": "github.com/davecgh/go-spew",
+    "version": "v1.1.1",
+    "files": [
+      "licenses/github.com_davecgh_go-spew/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/emirpasic/gods",
+    "version": "v1.18.1",
+    "files": [
+      "licenses/github.com_emirpasic_gods/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/golang/mock",
+    "version": "v1.6.0",
+    "files": [
+      "licenses/github.com_golang_mock/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/google/uuid",
+    "version": "v1.6.0",
+    "files": [
+      "licenses/github.com_google_uuid/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/gopherjs/gopherjs",
+    "version": "v0.0.0-20181017120253-0766667cb4d1",
+    "files": [
+      "licenses/github.com_gopherjs_gopherjs/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/json-iterator/go",
+    "version": "v1.1.12",
+    "files": [
+      "licenses/github.com_json-iterator_go/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/jtolds/gls",
+    "version": "v4.20.0+incompatible",
+    "files": [
+      "licenses/github.com_jtolds_gls/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/modern-go/concurrent",
+    "version": "v0.0.0-20180306012644-bacd9c7ef1dd",
+    "files": [
+      "licenses/github.com_modern-go_concurrent/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/modern-go/reflect2",
+    "version": "v1.0.2",
+    "files": [
+      "licenses/github.com_modern-go_reflect2/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/patrickmn/go-cache",
+    "version": "v2.1.0+incompatible",
+    "files": [
+      "licenses/github.com_patrickmn_go-cache/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/pkg/errors",
+    "version": "v0.9.1",
+    "files": [
+      "licenses/github.com_pkg_errors/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/pmezard/go-difflib",
+    "version": "v1.0.0",
+    "files": [
+      "licenses/github.com_pmezard_go-difflib/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/sirupsen/logrus",
+    "version": "v1.9.4",
+    "files": [
+      "licenses/github.com_sirupsen_logrus/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/smartystreets/assertions",
+    "version": "v0.0.0-20180927180507-b2de0cb4f26d",
+    "files": [
+      "licenses/github.com_smartystreets_assertions/LICENSE.md"
+    ]
+  },
+  {
+    "module": "github.com/smartystreets/goconvey",
+    "version": "v1.6.4",
+    "files": [
+      "licenses/github.com_smartystreets_goconvey/LICENSE.md"
+    ]
+  },
+  {
+    "module": "github.com/stretchr/testify",
+    "version": "v1.10.0",
+    "files": [
+      "licenses/github.com_stretchr_testify/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/t8y2/dbx/plugins/sdk/go/dbx-plugin-sdk",
+    "version": "v0.0.0",
+    "files": [
+      "licenses/github.com_t8y2_dbx_plugins_sdk_go_dbx-plugin-sdk/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/tidwall/gjson",
+    "version": "v1.18.0",
+    "files": [
+      "licenses/github.com_tidwall_gjson/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/tidwall/match",
+    "version": "v1.2.0",
+    "files": [
+      "licenses/github.com_tidwall_match/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/tidwall/pretty",
+    "version": "v1.2.1",
+    "files": [
+      "licenses/github.com_tidwall_pretty/LICENSE"
+    ]
+  },
+  {
+    "module": "go.uber.org/atomic",
+    "version": "v1.11.0",
+    "files": [
+      "licenses/go.uber.org_atomic/LICENSE.txt"
+    ]
+  },
+  {
+    "module": "golang.org/x/net",
+    "version": "v0.17.0",
+    "files": [
+      "licenses/golang.org_x_net/LICENSE"
+    ]
+  },
+  {
+    "module": "golang.org/x/sys",
+    "version": "v0.13.0",
+    "files": [
+      "licenses/golang.org_x_sys/LICENSE"
+    ]
+  },
+  {
+    "module": "gopkg.in/natefinch/lumberjack.v2",
+    "version": "v2.2.1",
+    "files": [
+      "licenses/gopkg.in_natefinch_lumberjack.v2/LICENSE"
+    ]
+  },
+  {
+    "module": "gopkg.in/yaml.v3",
+    "version": "v3.0.1",
+    "files": [
+      "licenses/gopkg.in_yaml.v3/LICENSE",
+      "licenses/gopkg.in_yaml.v3/NOTICE"
+    ]
+  },
+  {
+    "module": "stathat.com/c/consistent",
+    "version": "v1.0.0",
+    "files": [
+      "licenses/stathat.com_c_consistent/LICENSE"
+    ]
+  }
+]

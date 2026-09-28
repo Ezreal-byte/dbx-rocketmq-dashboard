@@ -1,0 +1,1452 @@
+diff --git a/frontend/package-lock.json b/frontend/package-lock.json
+index 1568768..c99f955 100644
+--- a/frontend/package-lock.json
++++ b/frontend/package-lock.json
+@@ -1,11 +1,11 @@
+ {
+-  "name": "frontend-new",
++  "name": "dbx-rocketmq-console-ui",
+   "version": "0.1.0",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+-      "name": "frontend-new",
++      "name": "dbx-rocketmq-console-ui",
+       "version": "0.1.0",
+       "dependencies": {
+         "@ant-design/icons": "^6.0.0",
+@@ -16,6 +16,7 @@
+         "antd": "^5.25.1",
+         "axios": "^1.9.0",
+         "dayjs": "^1.11.13",
++        "dbx-rocketmq-console": "file:..",
+         "echarts": "^5.6.0",
+         "framer-motion": "^12.16.0",
+         "http-proxy-middleware": "^3.0.5",
+@@ -36,6 +37,9 @@
+         "cross-env": "^7.0.3"
+       }
+     },
++    "..": {
++      "version": "0.1.0"
++    },
+     "node_modules/@adobe/css-tools": {
+       "version": "4.4.2",
+       "resolved": "https://registry.npmmirror.com/@adobe/css-tools/-/css-tools-4.4.2.tgz",
+@@ -6409,6 +6413,10 @@
+       "resolved": "https://registry.npmmirror.com/dayjs/-/dayjs-1.11.13.tgz",
+       "integrity": "sha512-oaMBel6gjolK862uaPQOVTA7q3TZhuSvuMQAAglQDOWYO9A91IrAOUJEyKVlqJlHE0vq5p5UXxzdPfMH/x6xNg=="
+     },
++    "node_modules/dbx-rocketmq-console": {
++      "resolved": "..",
++      "link": true
++    },
+     "node_modules/debug": {
+       "version": "4.4.1",
+       "resolved": "https://registry.npmmirror.com/debug/-/debug-4.4.1.tgz",
+diff --git a/frontend/package.json b/frontend/package.json
+index 4cb2d20..fe1ca4b 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -1,5 +1,5 @@
+ {
+-  "name": "frontend-new",
++  "name": "dbx-rocketmq-console-ui",
+   "version": "0.1.0",
+   "private": true,
+   "dependencies": {
+@@ -11,6 +11,7 @@
+     "antd": "^5.25.1",
+     "axios": "^1.9.0",
+     "dayjs": "^1.11.13",
++    "dbx-rocketmq-console": "file:..",
+     "echarts": "^5.6.0",
+     "framer-motion": "^12.16.0",
+     "http-proxy-middleware": "^3.0.5",
+@@ -29,7 +30,7 @@
+   },
+   "scripts": {
+     "start": "cross-env PORT=3003 react-scripts start",
+-    "build": "react-scripts build",
++    "build": "cross-env BUILD_PATH=../ui GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false react-scripts build",
+     "test": "react-scripts test",
+     "eject": "react-scripts eject"
+   },
+@@ -41,9 +42,7 @@
+   },
+   "browserslist": {
+     "production": [
+-      ">0.2%",
+-      "not dead",
+-      "not op_mini all"
++      "Chrome >= 109"
+     ],
+     "development": [
+       "last 1 chrome version",
+@@ -53,5 +52,6 @@
+   },
+   "devDependencies": {
+     "cross-env": "^7.0.3"
+-  }
++  },
++  "homepage": "."
+ }
+diff --git a/frontend/src/api/remoteApi/remoteApi.js b/frontend/src/api/remoteApi/remoteApi.js
+index 329628d..f4a67d8 100644
+--- a/frontend/src/api/remoteApi/remoteApi.js
++++ b/frontend/src/api/remoteApi/remoteApi.js
+@@ -14,50 +14,10 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-const appConfig = {
+-    apiBaseUrl: 'http://localhost:8082'
+-};
+-
+-let _redirectHandler = null;
+-
++import {bridgeFetch, exportJSON} from '../../dbx/bridge';
+ const remoteApi = {
+-
+-    setRedirectHandler: (handler) => {
+-        _redirectHandler = handler;
+-    },
+-
+-    buildUrl: (endpoint) => {
+-        if (endpoint.charAt(0) === '/') {
+-            endpoint = endpoint.substring(1);
+-        }
+-        return `${appConfig.apiBaseUrl}/${endpoint}`;
+-    },
+-
+-    _fetch: async (url, options) => {
+-        try {
+-            // 在 options 中添加 credentials: 'include'
+-            const response = await fetch(url, {
+-                ...options, // 保留原有的 options
+-                credentials: 'include' // 关键改动：允许发送 Cookie
+-            });
+-
+-
+-            // 检查响应是否被重定向，并且最终的 URL 包含了登录页的路径。
+-            // 这是会话过期或需要认证时后端重定向到登录页的常见模式。
+-            // 注意：fetch 会自动跟随 GET 请求的 3xx 重定向，所以我们检查的是 response.redirected。
+-            if (response.redirected) {
+-                if (_redirectHandler) {
+-                    _redirectHandler(); // 如果设置了重定向处理函数，则调用它
+-                }
+-                return {__isRedirectHandled: true};
+-            }
+-
+-            return response;
+-        } catch (error) {
+-            console.error("Fetch 请求出错:", error);
+-            throw error;
+-        }
+-    },
++    buildUrl: endpoint => new URL(endpoint, 'https://dashboard.dbx.invalid').toString(),
++    _fetch: bridgeFetch,
+ 
+     queryTopic: async (skipSysProcess) => {
+         try {
+@@ -116,7 +76,7 @@ const remoteApi = {
+         if (brokerName) params.append('brokerName', brokerName);
+         if (clusterName) params.append('clusterName', clusterName);
+         if (searchParam) params.append('searchParam', searchParam);
+-        if (searchParam != null) console.log(1111)
++
+         const response = await remoteApi._fetch(remoteApi.buildUrl(`/acl/acls.query?${params.toString()}`));
+         return await response.json();
+     },
+@@ -141,7 +101,7 @@ const remoteApi = {
+ 
+     deleteAcl: async (brokerName, subject, resource, clusterName) => {
+         const params = new URLSearchParams();
+-        if (brokerName) params.append('brokerAddress', brokerName);
++        if (brokerName) params.append('brokerName', brokerName);
+         params.append('subject', subject);
+         if (resource) params.append('resource', resource);
+         if (clusterName) params.append('clusterName', clusterName);
+@@ -235,29 +195,27 @@ const remoteApi = {
+             // 假设服务器总是返回 JSON
+             const data = await response.json();
+ 
+-            // 1. 打开一个新的空白窗口
+-            const newWindow = window.open('', '_blank');
+-
+-            if (!newWindow) {
+-                // 浏览器可能会阻止弹窗，需要用户允许
+-                return {status: 1, errMsg: "Failed to open new window. Please allow pop-ups for this site."};
+-            }
+-
+-            // 2. 将 JSON 数据格式化后写入新窗口
+-            newWindow.document.write('<html><head><title>DLQ 导出内容</title></head><body>');
+-            newWindow.document.write('<h1>DLQ 导出 JSON 内容</h1>');
+-            // 使用 <pre> 标签保持格式，并使用 JSON.stringify 格式化 JSON 以便于阅读
+-            newWindow.document.write('<pre>' + JSON.stringify(data, null, 2) + '</pre>');
+-            newWindow.document.write('</body></html>');
+-            newWindow.document.close(); // 关闭文档流，确保内容显示
+-
+-            return {status: 0, msg: "导出请求成功，内容已在新页面显示"};
++            if (data.status !== 0) return data;
++            await exportJSON('dead-letter-message.json', data.data);
++            return {status: 0, data: true};
+         } catch (error) {
+             console.error("Error exporting DLQ message:", error);
+             return {status: 1, errMsg: "Failed to export DLQ message: " + error.message};
+         }
+     },
+ 
++    batchExportDlqMessage: async (messages) => {
++        try {
++            const response = await remoteApi._fetch(remoteApi.buildUrl('/dlqMessage/batchExportDlqMessage.do'), {
++                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(messages),
++            });
++            const result = await response.json();
++            if (result.status !== 0) return result;
++            await exportJSON('dead-letter-messages.json', result.data);
++            return result;
++        } catch (error) { return {status: 1, errMsg: error.message}; }
++    },
++
+     batchResendDlqMessage: async (messages) => {
+         try {
+             const response = await remoteApi._fetch(remoteApi.buildUrl("/dlqMessage/batchResendDlqMessage.do"), {
+@@ -427,7 +385,6 @@ const remoteApi = {
+     },
+ 
+     createOrUpdateConsumerMonitor: async (consumeGroupName, minCount, maxDiffTotal) => {
+-        consumeGroupName = encodeURIComponent(consumeGroupName)
+         try {
+             const response = await remoteApi._fetch(remoteApi.buildUrl("/monitor/createOrUpdateConsumerMonitor.do"), {
+                 method: 'POST',
+@@ -457,7 +414,6 @@ const remoteApi = {
+     },
+ 
+     deleteConsumerGroup: async (groupName, brokerNameList) => {
+-        groupName = encodeURIComponent(groupName)
+         try {
+             const response = await remoteApi._fetch(remoteApi.buildUrl("/consumer/deleteSubGroup.do"), {
+                 method: 'POST',
+@@ -705,65 +661,6 @@ const remoteApi = {
+         }
+     },
+ 
+-    // New API methods for Ops page
+-    queryOpsHomePage: async () => {
+-        try {
+-            const response = await remoteApi._fetch(remoteApi.buildUrl("/ops/homePage.query"));
+-            return await response.json();
+-        } catch (error) {
+-            console.error("Error fetching ops home page data:", error);
+-            return {status: 1, errMsg: "Failed to fetch ops home page data"};
+-        }
+-    },
+-
+-    updateNameSvrAddr: async (nameSvrAddr) => {
+-        try {
+-            const response = await remoteApi._fetch(remoteApi.buildUrl(`/ops/updateNameSvrAddr.do?nameSvrAddrList=${encodeURIComponent(nameSvrAddr)}`), {
+-                method: 'POST',
+-            });
+-            return await response.json();
+-        } catch (error) {
+-            console.error("Error updating NameServer address:", error);
+-            return {status: 1, errMsg: "Failed to update NameServer address"};
+-        }
+-    },
+-
+-    addNameSvrAddr: async (newNamesrvAddr) => {
+-        try {
+-            const response = await remoteApi._fetch(remoteApi.buildUrl(`/ops/addNameSvrAddr.do?newNamesrvAddr=${encodeURIComponent(newNamesrvAddr)}`), {
+-                method: 'POST',
+-            });
+-            return await response.json();
+-        } catch (error) {
+-            console.error("Error adding NameServer address:", error);
+-            return {status: 1, errMsg: "Failed to add NameServer address"};
+-        }
+-    },
+-
+-    updateIsVIPChannel: async (useVIPChannel) => {
+-        try {
+-            const response = await remoteApi._fetch(remoteApi.buildUrl(`/ops/updateIsVIPChannel.do?useVIPChannel=${useVIPChannel}`), {
+-                method: 'POST',
+-            });
+-            return await response.json();
+-        } catch (error) {
+-            console.error("Error updating VIP Channel status:", error);
+-            return {status: 1, errMsg: "Failed to update VIP Channel status"};
+-        }
+-    },
+-
+-    updateUseTLS: async (useTLS) => {
+-        try {
+-            const response = await remoteApi._fetch(remoteApi.buildUrl(`/ops/updateUseTLS.do?useTLS=${useTLS}`), {
+-                method: 'POST',
+-            });
+-            return await response.json();
+-        } catch (error) {
+-            console.error("Error updating TLS status:", error);
+-            return {status: 1, errMsg: "Failed to update TLS status"};
+-        }
+-    },
+-
+     queryClusterList: async (callback) => {
+         try {
+             const response = await remoteApi._fetch(remoteApi.buildUrl("/cluster/list.query"));
+@@ -855,60 +752,7 @@ const remoteApi = {
+         }
+     },
+ 
+-    /**
+-     * 添加新的 Proxy 地址
+-     */
+-    addProxyAddr: async (newProxyAddr, callback) => {
+-        try {
+-            const response = await remoteApi._fetch(remoteApi.buildUrl("/proxy/addProxyAddr.do"), {
+-                method: 'POST',
+-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+-                body: new URLSearchParams({newProxyAddr}).toString()
+-            });
+-            const data = await response.json();
+-            callback(data);
+-        } catch (error) {
+-            console.error("Error adding proxy address:", error);
+-            callback({status: 1, errMsg: "Failed to add proxy address"});
+-        }
+-    },
+-    login: async (username, password) => {
+-        try {
+-
+-
+-            // 2. 发送请求，注意 body 可以是空字符串或 null，或者直接省略 body
+-            // 这里使用 GET 方法，因为参数在 URL 上
+-            const response = await remoteApi._fetch(remoteApi.buildUrl("/login/login.do"), {
+-                method: 'POST',
+-                headers: {
+-                    'Content-Type': 'application/x-www-form-urlencoded' // 这个 header 可能不再需要，或者需要调整
+-                },
+-                body: new URLSearchParams({
+-                    username: username, // 假设 username 是变量名
+-                    password: password  // 假设 password 是变量名
+-                }).toString()
+-            });
+ 
+-            // 3. 处理响应
+-            const data = await response.json();
+-            return data;
+-        } catch (error) {
+-            console.error("Error logging in:", error);
+-            return {status: 1, errMsg: "Failed to log in"};
+-        }
+-    },
+-
+-    logout: async () => {
+-        try {
+-            const response = await remoteApi._fetch(remoteApi.buildUrl("/login/logout.do"), {
+-                method: 'POST'
+-            });
+-            return await response.json()
+-        } catch (error) {
+-            console.error("Error logging out:", error);
+-            return {status: 1, errMsg: "Failed to log out"};
+-        }
+-    }
+ };
+ 
+ const tools = {
+diff --git a/frontend/src/components/MessageTraceDetailViewDialog.jsx b/frontend/src/components/MessageTraceDetailViewDialog.jsx
+index 9477a4b..0ec05f8 100644
+--- a/frontend/src/components/MessageTraceDetailViewDialog.jsx
++++ b/frontend/src/components/MessageTraceDetailViewDialog.jsx
+@@ -73,7 +73,7 @@ const MessageTraceDetailViewDialog = ({ngDialogData}) => {
+                             return ERROR_COLOR;
+                     }
+                 }
+-                switch (traceNode.status) {
++                switch (String(traceNode.status).toUpperCase()) {
+                     case 'FAILED': // Changed 'failed' to 'FAILED' to match backend typically
+                         return ERROR_COLOR;
+                     case 'UNKNOWN': // Changed 'unknown' to 'UNKNOWN'
+diff --git a/frontend/src/components/Navbar.jsx b/frontend/src/components/Navbar.jsx
+index befc4cd..cc13af5 100644
+--- a/frontend/src/components/Navbar.jsx
++++ b/frontend/src/components/Navbar.jsx
+@@ -15,13 +15,12 @@
+  * limitations under the License.
+  */
+ 
+-import React, {useEffect, useState} from 'react';
++import React, {useState} from 'react';
+ import {Button, Drawer, Dropdown, Grid, Layout, Menu, Space} from 'antd';
+-import {BgColorsOutlined, DownOutlined, GlobalOutlined, MenuOutlined, UserOutlined} from '@ant-design/icons';
++import {BgColorsOutlined, DownOutlined, GlobalOutlined, MenuOutlined} from '@ant-design/icons';
+ import {useLocation, useNavigate} from 'react-router-dom';
+ import {useLanguage} from '../i18n/LanguageContext';
+ import {useTheme} from "../store/context/ThemeContext";
+-import {remoteApi} from "../api/remoteApi/remoteApi";
+ 
+ const {Header} = Layout;
+ const {useBreakpoint} = Grid; // Used to determine screen breakpoints
+@@ -32,7 +31,6 @@ const Navbar = ({rmqVersion = true, showAcl = true}) => {
+     const {lang, setLang, t} = useLanguage();
+     const screens = useBreakpoint(); // Get current screen size breakpoints
+     const {currentThemeName, setCurrentThemeName} = useTheme();
+-    const [userName, setUserName] = useState(null);
+     const [drawerVisible, setDrawerVisible] = useState(false); // Controls drawer visibility
+ 
+     // Get selected menu item key based on current route path
+@@ -43,31 +41,6 @@ const Navbar = ({rmqVersion = true, showAcl = true}) => {
+         setDrawerVisible(false); // Close drawer after clicking a menu item
+     };
+ 
+-    const onLogout = () => {
+-        remoteApi.logout().then(res => {
+-            if (res.status === 0) {
+-                window.localStorage.removeItem("username");
+-                window.localStorage.removeItem("userRole");
+-                window.localStorage.removeItem("token");
+-                window.localStorage.removeItem("rmqVersion");
+-                navigate('/login');
+-            } else {
+-                console.error('Logout failed:', res.message)
+-                navigate('/login');
+-            }
+-        })
+-
+-    };
+-
+-    useEffect(() => {
+-        const storedUsername = window.localStorage.getItem("username");
+-        if (storedUsername) {
+-            setUserName(storedUsername);
+-        } else {
+-            setUserName(null);
+-        }
+-    }, []);
+-
+     const langMenu = (
+         <Menu onClick={({key}) => setLang(key)}>
+             <Menu.Item key="en">{t.ENGLISH}</Menu.Item>
+@@ -75,12 +48,6 @@ const Navbar = ({rmqVersion = true, showAcl = true}) => {
+         </Menu>
+     );
+ 
+-    const userMenu = (
+-        <Menu>
+-            <Menu.Item key="logout" onClick={onLogout}>{t.LOGOUT}</Menu.Item>
+-        </Menu>
+-    );
+-
+     const themeMenu = (
+         <Menu onClick={({key}) => setCurrentThemeName(key)}>
+             <Menu.Item key="default">{t.BLUE} ({t.DEFAULT})</Menu.Item>
+@@ -92,8 +59,6 @@ const Navbar = ({rmqVersion = true, showAcl = true}) => {
+ 
+     // Menu item configuration
+     const menuItems = [
+-        {key: 'ops', label: t.OPS},
+-        ...(rmqVersion ? [{key: 'proxy', label: t.PROXY}] : []),
+         {key: '', label: t.DASHBOARD}, // Dashboard corresponds to root path
+         {key: 'cluster', label: t.CLUSTER},
+         {key: 'topic', label: t.TOPIC},
+@@ -161,17 +126,6 @@ const Navbar = ({rmqVersion = true, showAcl = true}) => {
+                     </Button>
+                 </Dropdown>
+ 
+-                {userName && (
+-                    <Dropdown overlay={userMenu}>
+-                        {/* 使用一个可点击的元素作为 Dropdown 的唯一子元素 */}
+-                        <a onClick={e => e.preventDefault()} style={{display: 'flex', alignItems: 'center'}}>
+-                            <UserOutlined style={{marginRight: 8}}/> {/* 添加一些间距 */}
+-                            {userName}
+-                            <DownOutlined style={{marginLeft: 8}}/>
+-                        </a>
+-                    </Dropdown>
+-                )}
+-
+                 {isSmallScreen && ( // Display hamburger icon on small screens
+                     <Button
+                         type="primary"
+diff --git b/frontend/src/dbx/HostGate.jsx b/frontend/src/dbx/HostGate.jsx
+new file mode 100644
+index 0000000..7829c8c
+--- /dev/null
++++ b/frontend/src/dbx/HostGate.jsx
+@@ -0,0 +1,32 @@
++import React, {useEffect, useState} from 'react';
++import {Alert, Spin} from 'antd';
++
++export default function HostGate({children}) {
++    const [state, setState] = useState({loading: true});
++    useEffect(() => {
++        let alive = true, generation = 0, off;
++        async function load() {
++            const current = ++generation;
++            setState({loading: true});
++            try {
++                const host = window.dbxPlugin;
++                if (!host) throw new Error('请从 DBX 的 RocketMQ 连接打开控制台 / Open from a DBX RocketMQ connection.');
++                await host.ready;
++                const id = host.context?.connectionId || host.context?.id;
++                if (!id) throw new Error('请先连接 RocketMQ / Connect to RocketMQ first.');
++                const info = await host.invoke('rocketmq/info', {connectionId: id});
++                if (!alive || current !== generation) return;
++                window.dbxDashboardInfo = info;
++                setState({id, loading: false});
++            } catch (error) {
++                if (alive && current === generation) setState({error: String(error.message || error)});
++            }
++        }
++        load();
++        off = window.dbxPlugin?.onContext?.(load);
++        return () => { alive = false; off?.(); };
++    }, []);
++    if (state.error) return <Alert type="error" showIcon message={state.error}/>;
++    if (state.loading) return <Spin style={{margin: 32}}/>;
++    return <React.Fragment key={state.id}>{children}</React.Fragment>;
++}
+diff --git b/frontend/src/dbx/bridge.js b/frontend/src/dbx/bridge.js
+new file mode 100644
+index 0000000..c409e5e
+--- /dev/null
++++ b/frontend/src/dbx/bridge.js
+@@ -0,0 +1,55 @@
++// Dashboard's request contract transported over DBX, never browser HTTP.
++export async function bridgeFetch(url, options = {}) {
++    const host = window.dbxPlugin;
++    if (!host) throw new Error('Open this console from a DBX RocketMQ connection.');
++    await host.ready;
++    const connectionId = host.context?.connectionId || host.context?.id;
++    if (!connectionId) throw new Error('No active DBX connection.');
++    const parsed = new URL(url, 'https://dashboard.dbx.invalid');
++    const query = Object.fromEntries(parsed.searchParams);
++    Object.assign(query, options.params || {});
++    let body = options.body;
++    if (typeof body === 'string') {
++        if ((options.headers?.['Content-Type'] || '').includes('application/json')) body = JSON.parse(body);
++        else body = Object.fromEntries(new URLSearchParams(body));
++    }
++    const result = await host.invoke('dashboard/request', {
++        connectionId, method: options.method || 'GET', path: parsed.pathname,
++        query, body: body ?? null,
++    }, {timeoutMs: 60000});
++    return {ok: true, status: 200, redirected: false, json: async () => result};
++}
++
++export async function exportJSON(filename, data) {
++    const text = JSON.stringify(data, null, 2);
++    return hostDownload(filename, {content:text});
++}
++
++export async function exportDataURL(filename, dataURL) {
++    const match = /^data:image\/(?:png|jpeg);base64,([A-Za-z0-9+/=]+)$/.exec(dataURL);
++    if (!match) throw new Error('Invalid chart image.');
++    return hostDownload(filename, {contentBase64:match[1]});
++}
++
++async function hostDownload(filename, content) {
++    const host = window.dbxPlugin;
++    await host?.ready;
++    if (!host?.capabilities?.downloadFile) throw new Error('This DBX host does not support file downloads.');
++    const connectionId = host.context?.connectionId || host.context?.id;
++    const downloadId = crypto.randomUUID();
++    const bytes = content.content !== undefined ? new TextEncoder().encode(content.content) : Uint8Array.from(atob(content.contentBase64),c=>c.charCodeAt(0));
++    if (bytes.length > 8*1024*1024) throw new Error('Export exceeds 8 MiB. Select fewer messages.');
++    // Small requests preserve the simple host contract; larger exports avoid its frame limit.
++    if (bytes.length <= 256*1024) return host.request('host.downloadFile',{downloadId,fileName:filename,params:{connectionId,...content}});
++    try {
++        await host.invoke('filesystem/download/stage',{connectionId,downloadId,size:bytes.length});
++        for(let offset=0;offset<bytes.length;offset+=192*1024){
++            const chunk=bytes.subarray(offset,offset+192*1024);
++            let binary='';for(let i=0;i<chunk.length;i+=8192)binary+=String.fromCharCode(...chunk.subarray(i,i+8192));
++            await host.invoke('filesystem/download/append',{connectionId,downloadId,offset,dataBase64:btoa(binary)});
++        }
++        await host.request('host.downloadFile',{downloadId,fileName:filename,params:{connectionId}});
++    } finally {
++        await host.invoke('filesystem/download/close',{connectionId,downloadId});
++    }
++}
+diff --git b/frontend/src/dbx/history.js b/frontend/src/dbx/history.js
+new file mode 100644
+index 0000000..a9d7332
+--- /dev/null
++++ b/frontend/src/dbx/history.js
+@@ -0,0 +1,10 @@
++// Preserve actual timestamps and break lines where the connected collector missed a minute.
++export function historySeries(values, column) {
++    const rows = values.map(value => value.split(',')).map(fields => [Number(fields[0]), fields[column] === '' ? null : Number(fields[column])]).filter(row => Number.isFinite(row[0])).sort((a,b) => a[0]-b[0]);
++    const data = [];
++    for (const row of rows) {
++        if (data.length && row[0] - data[data.length-1][0] > 90000) data.push([data[data.length-1][0]+60000, null]);
++        data.push([row[0], Number.isFinite(row[1]) ? row[1] : null]);
++    }
++    return data;
++}
+diff --git b/frontend/src/dbx/preferences.js b/frontend/src/dbx/preferences.js
+new file mode 100644
+index 0000000..1333e01
+--- /dev/null
++++ b/frontend/src/dbx/preferences.js
+@@ -0,0 +1,7 @@
++// Sandboxed DBX frames have no browser storage origin. Keep presentation
++// preferences in the current workbench; connection state belongs to DBX.
++const preferences = new Map();
++export const presentationPreferences = {
++    getItem: key => preferences.get(key) ?? null,
++    setItem: (key,value) => preferences.set(key,value),
++};
+diff --git a/frontend/src/index.js b/frontend/src/index.js
+index 6b6f01a..2bf9b79 100644
+--- a/frontend/src/index.js
++++ b/frontend/src/index.js
+@@ -19,6 +19,7 @@ import React from 'react';
+ import ReactDOM from 'react-dom/client';
+ import './index.css';
+ import App from './App';
++import HostGate from './dbx/HostGate';
+ import {App as AntdApp} from 'antd';
+ import reportWebVitals from './reportWebVitals';
+ import {LanguageProvider} from "./i18n/LanguageContext";
+@@ -31,7 +32,7 @@ root.render(
+         <React.StrictMode>
+             <AntdApp>
+                 <Provider store={store}>
+-                    <App/>
++                    <HostGate><App/></HostGate>
+                 </Provider>
+             </AntdApp>
+         </React.StrictMode>
+diff --git a/frontend/src/pages/Acl/acl.jsx b/frontend/src/pages/Acl/acl.jsx
+index c3652eb..1f72fb8 100644
+--- a/frontend/src/pages/Acl/acl.jsx
++++ b/frontend/src/pages/Acl/acl.jsx
+@@ -120,7 +120,7 @@ const Acl = () => {
+     }, [activeTab]); // Dependencies for useEffect
+ 
+     useEffect(() => {
+-        const userPermission = localStorage.getItem('userrole');
++        const userPermission = (window.dbxDashboardInfo?.readOnly ? 2 : 1);
+         if (userPermission == 2) {
+             setWriteOperationEnabled(false);
+         } else {
+diff --git a/frontend/src/pages/Cluster/cluster.jsx b/frontend/src/pages/Cluster/cluster.jsx
+index 26d2c24..9f372bb 100644
+--- a/frontend/src/pages/Cluster/cluster.jsx
++++ b/frontend/src/pages/Cluster/cluster.jsx
+@@ -125,7 +125,7 @@ const Cluster = () => {
+             dataIndex: 'brokerId', // 直接使用 brokerId
+             key: 'no',
+             align: 'center',
+-            render: (brokerId) => `${brokerId}${brokerId === 0 ? `(${t.MASTER})` : `(${t.SLAVE})`}`,
++            render: (brokerId) => `${brokerId}(${Number(brokerId) === 0 ? (t.MASTER || 'Master') : (t.SLAVE || 'Slave')})`,
+         },
+         {
+             title: t.ADDRESS,
+diff --git a/frontend/src/pages/Consumer/consumer.jsx b/frontend/src/pages/Consumer/consumer.jsx
+index 3377e7a..b9d52f5 100644
+--- a/frontend/src/pages/Consumer/consumer.jsx
++++ b/frontend/src/pages/Consumer/consumer.jsx
+@@ -46,25 +46,9 @@ const ConsumerGroupList = () => {
+     const [messageApi, msgContextHolder] = message.useMessage();
+     const [notificationApi, notificationContextHolder] = notification.useNotification();
+ 
+-    const [proxyEnabled, setProxyEnabled] = useState(() => {
+-        try {
+-            const storedValue = localStorage.getItem('proxyEnabled');
+-            return storedValue ? JSON.parse(storedValue) : false;
+-        } catch (error) {
+-            console.error("Failed to read proxyEnabled from localStorage:", error);
+-            return false;
+-        }
+-    });
++    const [proxyEnabled, setProxyEnabled] = useState(false);
+ 
+-    const [selectedProxy, setSelectedProxy] = useState(() => {
+-        try {
+-            const storedValue = localStorage.getItem('selectedProxy');
+-            return storedValue || undefined;
+-        } catch (error) {
+-            console.error("Failed to read selectedProxy from localStorage:", error);
+-            return undefined;
+-        }
+-    });
++    const [selectedProxy, setSelectedProxy] = useState(undefined);
+ 
+     const [proxyOptions, setProxyOptions] = useState([]);
+     const [paginationConf, setPaginationConf] = useState({
+@@ -203,17 +187,7 @@ const ConsumerGroupList = () => {
+         });
+     }, [t]);
+ 
+-    useEffect(() => {
+-        localStorage.setItem('proxyEnabled', JSON.stringify(proxyEnabled));
+-    }, [proxyEnabled]);
+ 
+-    useEffect(() => {
+-        if (selectedProxy) {
+-            localStorage.setItem('selectedProxy', selectedProxy);
+-        } else {
+-            localStorage.removeItem('selectedProxy');
+-        }
+-    }, [selectedProxy]);
+ 
+ 
+     useEffect(() => {
+@@ -233,7 +207,7 @@ const ConsumerGroupList = () => {
+     }, [intervalProcessSwitch, loadConsumerGroups]);
+ 
+     useEffect(() => {
+-        const userPermission = localStorage.getItem('userrole');
++        const userPermission = (window.dbxDashboardInfo?.readOnly ? 2 : 1);
+         console.log(userPermission);
+         if (userPermission == 2) {
+             setWriteOperationEnabled(false);
+diff --git a/frontend/src/pages/Dashboard/DashboardPage.jsx b/frontend/src/pages/Dashboard/DashboardPage.jsx
+index 57d63c4..6d5c57f 100644
+--- a/frontend/src/pages/Dashboard/DashboardPage.jsx
++++ b/frontend/src/pages/Dashboard/DashboardPage.jsx
+@@ -21,6 +21,8 @@ import * as echarts from 'echarts';
+ import moment from 'moment';
+ import {useLanguage} from '../../i18n/LanguageContext';
+ import {remoteApi, tools} from '../../api/remoteApi/remoteApi';
++import {exportDataURL} from '../../dbx/bridge';
++import {historySeries} from '../../dbx/history';
+ 
+ const {Option} = Select;
+ 
+@@ -83,7 +85,12 @@ const DashboardPage = () => {
+                         feature: {
+                             dataZoom: {yAxisIndex: 'none'},
+                             restore: {},
+-                            saveAsImage: {}
++                            mySaveAsImage: {
++                                show: true,
++                                title: 'Save as image',
++                                icon: 'path://M4.7,22.9L29.3,45.5L54.7,23.4M4.6,43.6L4.6,58L53.8,58L53.8,43.6M29.2,45.1L29.2,0',
++                                onclick: () => exportDataURL('rocketmq-chart.png', chart.getDataURL({type:'png',pixelRatio:2,backgroundColor:'#fff'})).catch(error => messageApi.error(error.message))
++                            }
+                         }
+                     },
+                     tooltip: {trigger: 'axis', axisPointer: {animation: false}},
+@@ -140,70 +147,17 @@ const DashboardPage = () => {
+         };
+     }, []);
+ 
+-    const getBrokerLineChartOp = useCallback((legend, data) => {
+-        const series = [];
+-        let xAxisData = [];
+-        let isFirstSeries = true;
+-
+-        Object.entries(data).forEach(([key, values]) => {
+-            const tpsValues = [];
+-            values.forEach(tpsValue => {
+-                const tpsArray = tpsValue.split(",");
+-                if (isFirstSeries) {
+-                    xAxisData.push(moment(parseInt(tpsArray[0])).format("HH:mm:ss"));
+-                }
+-                tpsValues.push(parseFloat(tpsArray[1]));
+-            });
+-            isFirstSeries = false;
+-            series.push({
+-                name: key,
+-                type: 'line',
+-                smooth: true,
+-                symbol: 'none',
+-                sampling: 'average',
+-                data: tpsValues
+-            });
+-        });
+-
+-        return {
+-            legend: {data: legend},
+-            color: ["#FF0000", "#00BFFF", "#FF00FF", "#1ce322", "#000000", '#EE7942'],
+-            xAxis: {type: 'category', boundaryGap: false, data: xAxisData},
+-            series: series
+-        };
+-    }, []);
+-
+-    const getTopicLineChartOp = useCallback((legend, data) => {
+-        const series = [];
+-        let xAxisData = [];
+-        let isFirstSeries = true;
+-
+-        Object.entries(data).forEach(([key, values]) => {
+-            const tpsValues = [];
+-            values.forEach(tpsValue => {
+-                const tpsArray = tpsValue.split(",");
+-                if (isFirstSeries) {
+-                    xAxisData.push(moment(parseInt(tpsArray[0])).format("HH:mm:ss"));
+-                }
+-                tpsValues.push(parseFloat(tpsArray[2]));
+-            });
+-            isFirstSeries = false;
+-            series.push({
+-                name: key,
+-                type: 'line',
+-                smooth: true,
+-                symbol: 'none',
+-                sampling: 'average',
+-                data: tpsValues
+-            });
+-        });
+-
+-        return {
+-            legend: {data: legend},
+-            xAxis: {type: 'category', boundaryGap: false, data: xAxisData},
+-            series: series
+-        };
+-    }, []);
++    const getBrokerLineChartOp = useCallback((legend, data) => ({
++        legend: {data: legend}, color: ["#FF0000", "#00BFFF", "#FF00FF", "#1ce322", "#000000", '#EE7942'],
++        xAxis: {type: 'time', boundaryGap: false, axisLabel: {formatter: value => moment(value).format('HH:mm:ss')}},
++        series: Object.entries(data).map(([key, values]) => ({name:key,type:'line',smooth:true,symbol:'none',connectNulls:false,data:historySeries(values,1)}))
++    }), []);
++
++    const getTopicLineChartOp = useCallback((legend, data) => ({
++        legend: {data: legend}, 
++        xAxis: {type: 'time', boundaryGap: false, axisLabel: {formatter: value => moment(value).format('HH:mm:ss')}},
++        series: Object.entries(data).map(([key, values]) => ({name:key,type:'line',smooth:true,symbol:'none',connectNulls:false,data:historySeries(values,2)}))
++    }), []);
+ 
+     const queryLineData = useCallback(async () => {
+         const _date = date ? date.format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
+diff --git a/frontend/src/pages/Login/login.jsx a/frontend/src/pages/Login/login.jsx
+deleted file mode 100644
+index 2a55622..0000000
+--- a/frontend/src/pages/Login/login.jsx
++++ /dev/null
+@@ -1,88 +0,0 @@
+-/*
+- * Licensed to the Apache Software Foundation (ASF) under one or more
+- * contributor license agreements.  See the NOTICE file distributed with
+- * this work for additional information regarding copyright ownership.
+- * The ASF licenses this file to You under the Apache License, Version 2.0
+- * (the "License"); you may not use this file except in compliance with
+- * the License.  You may obtain a copy of the License at
+- *
+- *     http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-import React from 'react';
+-import {Button, Form, Input, message, Typography} from 'antd';
+-import {remoteApi} from "../../api/remoteApi/remoteApi";
+-import {useLanguage} from "../../i18n/LanguageContext";
+-
+-const {Title} = Typography;
+-
+-const Login = () => {
+-    const [form] = Form.useForm();
+-    const [messageApi, msgContextHolder] = message.useMessage();
+-    const {t} = useLanguage();
+-    const onFinish = async (values) => {
+-        const {username, password} = values;
+-        remoteApi.login(username, password).then((res) => {
+-            if (res.status === 0) {
+-                messageApi.success(t.LOGIN_SUCCESS);
+-                window.localStorage.setItem("username", res.data.loginUserName);
+-                window.localStorage.setItem("userrole", res.data.loginUserRole);
+-                window.location.href = '/';
+-            } else {
+-                messageApi.error(res.message || t.LOGIN_FAILED);
+-            }
+-        })
+-    };
+-
+-    return (
+-        <>
+-            {msgContextHolder}
+-            <div style={{
+-                maxWidth: 400,
+-                margin: '100px auto',
+-                padding: 24,
+-                boxShadow: '0 2px 8px #f0f1f2',
+-                borderRadius: 8
+-            }}>
+-                <Title level={3} style={{textAlign: 'center', marginBottom: 24}}>
+-                    {t.WELCOME}
+-                </Title>
+-                <Form
+-                    form={form}
+-                    name="login_form"
+-                    layout="vertical"
+-                    onFinish={onFinish}
+-                    initialValues={{username: '', password: ''}}
+-                >
+-                    <Form.Item
+-                        label={t.USERNAME}
+-                        name="username"
+-                        rules={[{required: true, message: t.USERNAME_REQUIRED}]}>
+-                        <Input placeholder={t.USERNAME_PLACEHOLDER}/>
+-                    </Form.Item>
+-
+-                    <Form.Item
+-                        label={t.PASSWORD}
+-                        name="password"
+-                        rules={[{required: true, message: t.PASSWORD_REQUIRED}]}>
+-                        <Input.Password placeholder={t.PASSWORD_PLACEHOLDER}/>
+-                    </Form.Item>
+-
+-                    <Form.Item>
+-                        <Button type="primary" htmlType="submit" block>
+-                            {t.LOGIN}
+-                        </Button>
+-                    </Form.Item>
+-                </Form>
+-            </div>
+-        </>
+-    );
+-};
+-
+-export default Login;
+diff --git a/frontend/src/pages/Ops/ops.jsx a/frontend/src/pages/Ops/ops.jsx
+deleted file mode 100644
+index 1d1b69c..0000000
+--- a/frontend/src/pages/Ops/ops.jsx
++++ /dev/null
+@@ -1,193 +0,0 @@
+-/*
+- * Licensed to the Apache Software Foundation (ASF) under one or more
+- * contributor license agreements.  See the NOTICE file distributed with
+- * this work for additional information regarding copyright ownership.
+- * The ASF licenses this file to You under the Apache License, Version 2.0
+- * (the "License"); you may not use this file except in compliance with
+- * the License.  You may obtain a copy of the License at
+- *
+- *     http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-import React, {useEffect, useState} from 'react';
+-import {Button, Input, message, Select, Space, Switch, Typography} from 'antd';
+-import {remoteApi} from '../../api/remoteApi/remoteApi';
+-
+-const {Title} = Typography;
+-const {Option} = Select;
+-
+-const Ops = () => {
+-    const [namesrvAddrList, setNamesrvAddrList] = useState([]);
+-    const [selectedNamesrv, setSelectedNamesrv] = useState('');
+-    const [newNamesrvAddr, setNewNamesrvAddr] = useState('');
+-    const [useVIPChannel, setUseVIPChannel] = useState(false);
+-    const [useTLS, setUseTLS] = useState(false);
+-    const [writeOperationEnabled, setWriteOperationEnabled] = useState(true); // Default to true
+-    const [messageApi, msgContextHolder] = message.useMessage();
+-    useEffect(() => {
+-        const fetchOpsData = async () => {
+-            const userRole = sessionStorage.getItem("userrole");
+-            setWriteOperationEnabled(userRole === null || userRole === "1"); // Assuming "1" means write access
+-
+-            const resp = await remoteApi.queryOpsHomePage();
+-            if (resp.status === 0) {
+-                setNamesrvAddrList(resp.data.namesvrAddrList);
+-                setUseVIPChannel(resp.data.useVIPChannel);
+-                setUseTLS(resp.data.useTLS);
+-                setSelectedNamesrv(resp.data.currentNamesrv);
+-            } else {
+-                messageApi.error(resp.errMsg);
+-            }
+-        };
+-        fetchOpsData();
+-    }, []);
+-
+-    useEffect(() => {
+-        const userPermission = localStorage.getItem('userrole');
+-        console.log(userPermission);
+-        if (userPermission == 2) {
+-            setWriteOperationEnabled(false);
+-        } else {
+-            setWriteOperationEnabled(true);
+-        }
+-    }, []);
+-
+-    const handleUpdateNameSvrAddr = async () => {
+-        if (!selectedNamesrv) {
+-            messageApi.warning('请选择一个 NameServer 地址');
+-            return;
+-        }
+-        const resp = await remoteApi.updateNameSvrAddr(selectedNamesrv);
+-        if (resp.status === 0) {
+-            messageApi.info('UPDATE SUCCESS');
+-        } else {
+-            messageApi.error(resp.errMsg);
+-        }
+-    };
+-
+-    const handleAddNameSvrAddr = async () => {
+-        if (!newNamesrvAddr.trim()) {
+-            messageApi.warning('请输入新的 NameServer 地址');
+-            return;
+-        }
+-        const resp = await remoteApi.addNameSvrAddr(newNamesrvAddr.trim());
+-        if (resp.status === 0) {
+-            if (!namesrvAddrList.includes(newNamesrvAddr.trim())) {
+-                setNamesrvAddrList([...namesrvAddrList, newNamesrvAddr.trim()]);
+-            }
+-            setNewNamesrvAddr('');
+-            messageApi.info('ADD SUCCESS');
+-        } else {
+-            messageApi.error(resp.errMsg);
+-        }
+-    };
+-
+-    const handleUpdateIsVIPChannel = async (checked) => {
+-        setUseVIPChannel(checked); // Optimistic update
+-        const resp = await remoteApi.updateIsVIPChannel(checked);
+-        if (resp.status === 0) {
+-            messageApi.info('UPDATE SUCCESS');
+-        } else {
+-            messageApi.error(resp.errMsg);
+-            setUseVIPChannel(!checked); // Revert on error
+-        }
+-    };
+-
+-    const handleUpdateUseTLS = async (checked) => {
+-        setUseTLS(checked); // Optimistic update
+-        const resp = await remoteApi.updateUseTLS(checked);
+-        if (resp.status === 0) {
+-            messageApi.info('UPDATE SUCCESS');
+-        } else {
+-            messageApi.error(resp.errMsg);
+-            setUseTLS(!checked); // Revert on error
+-        }
+-    };
+-
+-    return (
+-        <>
+-            {msgContextHolder}
+-            <div style={{padding: 24}}>
+-                <div style={{marginBottom: 24}}>
+-                    <Title level={4}>NameServerAddressList</Title>
+-                    <Space wrap align="start">
+-                        <Select
+-                            style={{minWidth: 400, maxWidth: 500}}
+-                            value={selectedNamesrv}
+-                            onChange={setSelectedNamesrv}
+-                            disabled={!writeOperationEnabled}
+-                            placeholder="请选择 NameServer 地址"
+-                        >
+-                            {namesrvAddrList.map((addr) => (
+-                                <Option key={addr} value={addr}>
+-                                    {addr}
+-                                </Option>
+-                            ))}
+-                        </Select>
+-
+-                        {writeOperationEnabled && (
+-                            <Button type="primary" onClick={handleUpdateNameSvrAddr}>
+-                                UPDATE
+-                            </Button>
+-                        )}
+-
+-                        {writeOperationEnabled && (
+-                            <Input.Group compact style={{minWidth: 400}}>
+-                                <Input
+-                                    style={{width: 300}}
+-                                    placeholder="NamesrvAddr"
+-                                    value={newNamesrvAddr}
+-                                    onChange={(e) => setNewNamesrvAddr(e.target.value)}
+-                                />
+-                                <Button type="primary" onClick={handleAddNameSvrAddr}>
+-                                    ADD
+-                                </Button>
+-                            </Input.Group>
+-                        )}
+-                    </Space>
+-                </div>
+-
+-                <div style={{marginBottom: 24}}>
+-                    <Title level={4}>IsUseVIPChannel</Title>
+-                    <Space align="center">
+-                        <Switch
+-                            checked={useVIPChannel}
+-                            onChange={handleUpdateIsVIPChannel}
+-                            disabled={!writeOperationEnabled}
+-                        />
+-                        {writeOperationEnabled && (
+-                            <Button type="primary" onClick={() => handleUpdateIsVIPChannel(useVIPChannel)}>
+-                                UPDATE
+-                            </Button>
+-                        )}
+-                    </Space>
+-                </div>
+-
+-                <div style={{marginBottom: 24}}>
+-                    <Title level={4}>useTLS</Title>
+-                    <Space align="center">
+-                        <Switch
+-                            checked={useTLS}
+-                            onChange={handleUpdateUseTLS}
+-                            disabled={!writeOperationEnabled}
+-                        />
+-                        {writeOperationEnabled && (
+-                            <Button type="primary" onClick={() => handleUpdateUseTLS(useTLS)}>
+-                                UPDATE
+-                            </Button>
+-                        )}
+-                    </Space>
+-                </div>
+-            </div>
+-        </>
+-
+-    );
+-};
+-
+-export default Ops;
+diff --git a/frontend/src/pages/Proxy/proxy.jsx a/frontend/src/pages/Proxy/proxy.jsx
+deleted file mode 100644
+index a5d93b6..0000000
+--- a/frontend/src/pages/Proxy/proxy.jsx
++++ /dev/null
+@@ -1,189 +0,0 @@
+-/*
+- * Licensed to the Apache Software Foundation (ASF) under one or more
+- * contributor license agreements.  See the NOTICE file distributed with
+- * this work for additional information regarding copyright ownership.
+- * The ASF licenses this file to You under the Apache License, Version 2.0
+- * (the "License"); you may not use this file except in compliance with
+- * the License.  You may obtain a copy of the License at
+- *
+- *     http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-import React, {useEffect, useState} from 'react';
+-import {Button, Card, Col, Input, Modal, notification, Row, Select, Spin} from 'antd';
+-import {useLanguage} from '../../i18n/LanguageContext';
+-import {remoteApi} from "../../api/remoteApi/remoteApi";
+-
+-
+-const {Option} = Select;
+-
+-const ProxyManager = () => {
+-    const {t} = useLanguage();
+-
+-    const [loading, setLoading] = useState(false);
+-    const [proxyAddrList, setProxyAddrList] = useState([]);
+-    const [selectedProxy, setSelectedProxy] = useState('');
+-    const [newProxyAddr, setNewProxyAddr] = useState('');
+-    const [allProxyConfig, setAllProxyConfig] = useState({});
+-
+-    const [showModal, setShowModal] = useState(false); // 控制 Modal 弹窗显示
+-    const [writeOperationEnabled, setWriteOperationEnabled] = useState(true); // 写操作权限，默认 true
+-    const [notificationApi, notificationContextHolder] = notification.useNotification();
+-
+-    useEffect(() => {
+-        const userPermission = localStorage.getItem('userrole');
+-        console.log(userPermission);
+-        if (userPermission == 2) {
+-            setWriteOperationEnabled(false);
+-        } else {
+-            setWriteOperationEnabled(true);
+-        }
+-    }, []);
+-
+-    useEffect(() => {
+-        setLoading(true);
+-        remoteApi.queryProxyHomePage((resp) => {
+-            setLoading(false);
+-            if (resp.status === 0) {
+-                const {proxyAddrList, currentProxyAddr} = resp.data;
+-                setProxyAddrList(proxyAddrList || []);
+-                setSelectedProxy(currentProxyAddr || (proxyAddrList && proxyAddrList.length > 0 ? proxyAddrList[0] : ''));
+-
+-                if (currentProxyAddr) {
+-                    localStorage.setItem('proxyAddr', currentProxyAddr);
+-                } else if (proxyAddrList && proxyAddrList.length > 0) {
+-                    localStorage.setItem('proxyAddr', proxyAddrList[0]);
+-                }
+-
+-            } else {
+-                notificationApi.error({message: resp.errMsg || t.FETCH_PROXY_LIST_FAILED, duration: 2});
+-            }
+-        });
+-    }, [t]);
+-
+-    const handleSelectChange = (value) => {
+-        setSelectedProxy(value);
+-        localStorage.setItem('proxyAddr', value);
+-    };
+-
+-
+-    const handleAddProxyAddr = () => {
+-        if (!newProxyAddr.trim()) {
+-            notificationApi.warning({
+-                message: t.INPUT_PROXY_ADDR_REQUIRED || "Please input a new proxy address.",
+-                duration: 2
+-            });
+-            return;
+-        }
+-        setLoading(true);
+-        remoteApi.addProxyAddr(newProxyAddr.trim(), (resp) => {
+-            setLoading(false);
+-            if (resp.status === 0) {
+-                if (!proxyAddrList.includes(newProxyAddr.trim())) {
+-                    setProxyAddrList(prevList => [...prevList, newProxyAddr.trim()]);
+-                }
+-                setNewProxyAddr('');
+-                notificationApi.info({message: t.SUCCESS || "SUCCESS", duration: 2});
+-            } else {
+-                notificationApi.error({message: resp.errMsg || t.ADD_PROXY_FAILED, duration: 2});
+-            }
+-        });
+-    };
+-
+-    return (
+-        <Spin spinning={loading} tip={t.LOADING}>
+-            <div className="container-fluid" style={{padding: '24px'}} id="deployHistoryList">
+-                <Card
+-                    title={
+-                        <div style={{fontSize: '20px', fontWeight: 'bold'}}>
+-                            ProxyServerAddressList
+-                        </div>
+-                    }
+-                    bordered={false}
+-                >
+-                    <Row gutter={[16, 16]} align="middle">
+-                        <Col flex="auto" style={{minWidth: 300, maxWidth: 500}}>
+-                            <Select
+-                                style={{width: '100%'}}
+-                                value={selectedProxy}
+-                                onChange={handleSelectChange}
+-                                placeholder={t.SELECT}
+-                                showSearch
+-                                filterOption={(input, option) =>
+-                                    option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+-                                }
+-                            >
+-                                {proxyAddrList.map(addr => (
+-                                    <Option key={addr} value={addr}>
+-                                        {addr}
+-                                    </Option>
+-                                ))}
+-                            </Select>
+-                        </Col>
+-                    </Row>
+-
+-                    {writeOperationEnabled && (
+-                        <Row gutter={[16, 16]} align="middle" style={{marginTop: 16}}>
+-                            <Col>
+-                                <label htmlFor="newProxyAddrInput">ProxyAddr:</label>
+-                            </Col>
+-                            <Col>
+-                                <Input
+-                                    id="newProxyAddrInput"
+-                                    style={{width: 300}}
+-                                    value={newProxyAddr}
+-                                    onChange={(e) => setNewProxyAddr(e.target.value)}
+-                                    placeholder={t.INPUT_PROXY_ADDR}
+-                                />
+-                            </Col>
+-                            <Col>
+-                                <Button type="primary" onClick={handleAddProxyAddr}>
+-                                    {t.ADD}
+-                                </Button>
+-                            </Col>
+-                        </Row>
+-                    )}
+-                </Card>
+-
+-                <Modal
+-                    open={showModal}
+-                    onCancel={() => setShowModal(false)}
+-                    title={`${t.PROXY_CONFIG} [${selectedProxy}]`}
+-                    footer={
+-                        <div style={{textAlign: 'center'}}>
+-                            <Button onClick={() => setShowModal(false)}>{t.CLOSE}</Button>
+-                        </div>
+-                    }
+-                    width={800}
+-                    bodyStyle={{maxHeight: '60vh', overflowY: 'auto'}}
+-                >
+-                    <table className="table table-bordered" style={{width: '100%'}}>
+-                        <tbody>
+-                        {Object.entries(allProxyConfig).length > 0 ? (
+-                            Object.entries(allProxyConfig).map(([key, value]) => (
+-                                <tr key={key}>
+-                                    <td style={{fontWeight: 500, width: '30%'}}>{key}</td>
+-                                    <td>{value}</td>
+-                                </tr>
+-                            ))
+-                        ) : (
+-                            <tr>
+-                                <td colSpan="2"
+-                                    style={{textAlign: 'center'}}>{t.NO_CONFIG_DATA || "No configuration data available."}</td>
+-                            </tr>
+-                        )}
+-                        </tbody>
+-                    </table>
+-                </Modal>
+-            </div>
+-        </Spin>
+-    );
+-};
+-
+-export default ProxyManager;
+diff --git a/frontend/src/pages/Topic/topic.jsx b/frontend/src/pages/Topic/topic.jsx
+index 2a6677d..39f6daa 100644
+--- a/frontend/src/pages/Topic/topic.jsx
++++ b/frontend/src/pages/Topic/topic.jsx
+@@ -101,7 +101,7 @@ const DeployHistoryList = () => {
+         filterUnspecified, filterRetry, filterDLQ, filterSystem, allTopicList]);
+ 
+     useEffect(() => {
+-        const userPermission = localStorage.getItem('userrole');
++        const userPermission = (window.dbxDashboardInfo?.readOnly ? 2 : 1);
+         console.log(userPermission);
+         if (userPermission == 2) {
+             setWriteOperationEnabled(false);
+diff --git a/frontend/src/router/index.jsx b/frontend/src/router/index.jsx
+index bbf2814..f08e6e8 100644
+--- a/frontend/src/router/index.jsx
++++ b/frontend/src/router/index.jsx
+@@ -15,13 +15,10 @@
+  * limitations under the License.
+  */
+ 
+-import React, {useEffect} from 'react';
+-import {HashRouter as Router, Navigate, Route, Routes, useLocation, useNavigate} from 'react-router-dom';
++import React from 'react';
++import {MemoryRouter as Router, Navigate, Route, Routes, useLocation} from 'react-router-dom';
+ import {Layout} from 'antd';
+ import {AnimatePresence, motion} from 'framer-motion';
+-import Login from '../pages/Login/login';
+-import Ops from '../pages/Ops/ops';
+-import Proxy from '../pages/Proxy/proxy';
+ import Cluster from '../pages/Cluster/cluster';
+ import Topic from '../pages/Topic/topic';
+ import Consumer from '../pages/Consumer/consumer';
+@@ -33,7 +30,6 @@ import Acl from '../pages/Acl/acl';
+ 
+ import Navbar from '../components/Navbar';
+ import DashboardPage from "../pages/Dashboard/DashboardPage";
+-import {remoteApi} from "../api/remoteApi/remoteApi";
+ 
+ const {Header, Content} = Layout;
+ 
+@@ -59,15 +55,8 @@ const pageTransition = {
+ };
+ 
+ const AppRouter = () => {
+-    const navigate = useNavigate();
+     const location = useLocation();
+ 
+-    useEffect(() => {
+-        remoteApi.setRedirectHandler(() => {
+-            navigate('/login', {replace: true});
+-        });
+-    }, [navigate]);
+-
+     return (
+         <Layout style={{minHeight: '100vh'}}>
+             <Header style={{padding: 0, height: 'auto', lineHeight: 'normal'}}>
+@@ -77,20 +66,6 @@ const AppRouter = () => {
+             <Content style={{padding: '24px'}}>
+                 <AnimatePresence mode="wait">
+                     <Routes location={location} key={location.pathname}>
+-                        <Route
+-                            path="/login"
+-                            element={
+-                                <motion.div
+-                                    variants={pageVariants}
+-                                    initial="initial"
+-                                    animate="in"
+-                                    exit="out"
+-                                    transition={pageTransition}
+-                                >
+-                                    <Login/>
+-                                </motion.div>
+-                            }
+-                        />
+                         <Route
+                             path="/"
+                             element={
+@@ -105,34 +80,6 @@ const AppRouter = () => {
+                                 </motion.div>
+                             }
+                         />
+-                        <Route
+-                            path="/ops"
+-                            element={
+-                                <motion.div
+-                                    variants={pageVariants}
+-                                    initial="initial"
+-                                    animate="in"
+-                                    exit="out"
+-                                    transition={pageTransition}
+-                                >
+-                                    <Ops/>
+-                                </motion.div>
+-                            }
+-                        />
+-                        <Route
+-                            path="/proxy"
+-                            element={
+-                                <motion.div
+-                                    variants={pageVariants}
+-                                    initial="initial"
+-                                    animate="in"
+-                                    exit="out"
+-                                    transition={pageTransition}
+-                                >
+-                                    <Proxy/>
+-                                </motion.div>
+-                            }
+-                        />
+                         <Route
+                             path="/cluster"
+                             element={
+diff --git a/frontend/src/store/context/ThemeContext.js b/frontend/src/store/context/ThemeContext.js
+index 7249876..1897059 100644
+--- a/frontend/src/store/context/ThemeContext.js
++++ b/frontend/src/store/context/ThemeContext.js
+@@ -18,6 +18,7 @@ import {useEffect} from 'react';
+ import {useDispatch, useSelector} from 'react-redux';
+ import {defaultTheme, themes} from '../../assets/styles/theme';
+ import {setTheme} from '../actions/themeActions';
++import {presentationPreferences} from '../../dbx/preferences';
+ 
+ export const useTheme = () => {
+     // 从 Redux store 中取出 currentThemeName
+@@ -28,7 +29,7 @@ export const useTheme = () => {
+     const currentTheme = themes[currentThemeName] || defaultTheme;
+ 
+     useEffect(() => {
+-        localStorage.setItem('appTheme', currentThemeName);
++        presentationPreferences.setItem('appTheme', currentThemeName);
+     }, [currentThemeName]);
+ 
+     return {
+diff --git a/frontend/src/store/reducers/themeReducer.js b/frontend/src/store/reducers/themeReducer.js
+index 5601f94..e7e70b5 100644
+--- a/frontend/src/store/reducers/themeReducer.js
++++ b/frontend/src/store/reducers/themeReducer.js
+@@ -16,9 +16,10 @@
+  */
+ 
+ import {SET_THEME} from '../actions/themeActions';
++import {presentationPreferences} from '../../dbx/preferences';
+ 
+ const getInitialTheme = () => {
+-    return localStorage.getItem('appTheme') || 'default';
++    return presentationPreferences.getItem('appTheme') || 'default';
+ };
+ 
+ const initialState = {

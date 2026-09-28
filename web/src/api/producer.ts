@@ -1,0 +1,225 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import client from './client';
+
+// ─── Types ──────────────────────────────────────────────────────
+export interface ProducerConnection {
+  clientId: string;
+  clientAddr: string;
+  topic?: string;
+  producerGroup?: string;
+  language: string;
+  versionDesc: string;
+}
+
+export type ProducerReadiness = 'READY' | 'WARNING' | 'UNAVAILABLE';
+
+export type ProducerConnectionWarning =
+  | 'NO_CONNECTIONS'
+  | 'DUPLICATE_CLIENT_ID'
+  | 'MIXED_CLIENT_VERSION'
+  | 'INCOMPLETE_CLIENT_METADATA'
+  | 'INCOMPLETE_SCAN';
+
+export interface ProducerConnectionSummaryItem {
+  value: string;
+  count: number;
+}
+
+export interface ProducerConnectionSummary {
+  totalConnections: number;
+  uniqueClientCount: number;
+  uniqueAddressCount: number;
+  uniqueLanguageCount: number;
+  uniqueVersionCount: number;
+  languages: ProducerConnectionSummaryItem[];
+  versions: ProducerConnectionSummaryItem[];
+  duplicateClientIds: string[];
+  warnings: ProducerConnectionWarning[];
+  readiness: ProducerReadiness;
+}
+
+export interface ProducerConnectionResult {
+  connectionSet: ProducerConnection[];
+  summary: ProducerConnectionSummary;
+  complete: boolean;
+  failedBrokers: string[];
+  failedProducerGroups: string[];
+}
+
+interface TopicRecord {
+  name: string;
+}
+
+interface TopicListResponse {
+  data?: TopicRecord[];
+  topicList?: string[];
+}
+
+interface ProducerConnectionResponse {
+  connectionSet?: ProducerConnection[];
+  summary?: ProducerConnectionSummary;
+  complete?: boolean;
+  failedBrokers?: string[];
+  failedProducerGroups?: string[];
+}
+
+// ─── API ────────────────────────────────────────────────────────
+
+const hasText = (value?: string | null) => Boolean(value?.trim() && value.trim() !== 'null');
+
+const normalizeDimension = (value?: string | null) => (hasText(value) ? value!.trim() : 'UNKNOWN');
+
+const countDistinct = (
+  connections: ProducerConnection[],
+  extractor: (connection: ProducerConnection) => string,
+) =>
+  new Set(
+    connections
+      .map(extractor)
+      .filter(hasText)
+      .map((value) => value.trim()),
+  ).size;
+
+const distribution = (
+  connections: ProducerConnection[],
+  extractor: (connection: ProducerConnection) => string,
+): ProducerConnectionSummaryItem[] => {
+  const counts = new Map<string, number>();
+  connections.forEach((connection) => {
+    const value = normalizeDimension(extractor(connection));
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  });
+  return [...counts]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+};
+
+export function buildProducerConnectionSummary(
+  connections: ProducerConnection[],
+  complete = true,
+): ProducerConnectionSummary {
+  const duplicateClientIds = [
+    ...connections.reduce((counts, connection) => {
+      const clientId = connection.clientId?.trim();
+      if (clientId) counts.set(clientId, (counts.get(clientId) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>()),
+  ]
+    .filter(([, count]) => count > 1)
+    .map(([clientId]) => clientId)
+    .sort();
+  const languages = distribution(connections, (connection) => connection.language);
+  const versions = distribution(connections, (connection) => connection.versionDesc);
+  const warnings: ProducerConnectionWarning[] = [];
+
+  if (connections.length === 0) {
+    warnings.push('NO_CONNECTIONS');
+  } else {
+    if (duplicateClientIds.length > 0) warnings.push('DUPLICATE_CLIENT_ID');
+    if (versions.length > 1) warnings.push('MIXED_CLIENT_VERSION');
+    if (
+      connections.some(
+        (connection) =>
+          !hasText(connection.clientId) ||
+          !hasText(connection.clientAddr) ||
+          !hasText(connection.language) ||
+          !hasText(connection.versionDesc),
+      )
+    ) {
+      warnings.push('INCOMPLETE_CLIENT_METADATA');
+    }
+  }
+  if (!complete) warnings.push('INCOMPLETE_SCAN');
+
+  return {
+    totalConnections: connections.length,
+    uniqueClientCount: countDistinct(connections, (connection) => connection.clientId),
+    uniqueAddressCount: countDistinct(connections, (connection) => connection.clientAddr),
+    uniqueLanguageCount: languages.length,
+    uniqueVersionCount: versions.length,
+    languages,
+    versions,
+    duplicateClientIds,
+    warnings,
+    readiness: !complete
+      ? 'WARNING'
+      : connections.length === 0
+        ? 'UNAVAILABLE'
+        : warnings.length > 0
+          ? 'WARNING'
+          : 'READY',
+  };
+}
+
+/** Fetch topic names for a managed instance. */
+export async function fetchTopicList(instanceId: string): Promise<string[]> {
+  const res = await client.get<TopicListResponse>('/topics', { params: { instanceId } });
+  const topics = res.data.data?.map((topic) => topic.name) ?? res.data.topicList ?? [];
+  return topics.sort();
+}
+
+/** Fetch active producer groups for query suggestions */
+export async function fetchProducerGroups(
+  instanceId: string,
+  options: {
+    topic?: string;
+    query?: string;
+    limit?: number;
+  } = {},
+): Promise<string[]> {
+  const res = await client.get<{ data?: string[] }>('/producer/groups', {
+    params: {
+      instanceId,
+      topic: options.topic,
+      query: options.query,
+      limit: options.limit,
+    },
+  });
+  return res.data.data ?? [];
+}
+
+/** Query producer connections by topic and producer group */
+export async function queryProducerConnection(
+  instanceId: string,
+  topic: string,
+  producerGroup?: string,
+): Promise<ProducerConnectionResult> {
+  const res = await client.get<ProducerConnectionResponse>('/producer/connection', {
+    params: { instanceId, topic, producerGroup },
+  });
+  const connectionSet = res.data?.connectionSet ?? [];
+  const complete = res.data?.complete ?? true;
+  const backendSummary = res.data?.summary;
+  const summary = backendSummary ?? buildProducerConnectionSummary(connectionSet, complete);
+  const normalizedSummary =
+    !complete && !summary.warnings.includes('INCOMPLETE_SCAN')
+      ? {
+          ...summary,
+          warnings: [...summary.warnings, 'INCOMPLETE_SCAN' as const],
+          readiness: 'WARNING' as const,
+        }
+      : summary;
+  return {
+    connectionSet,
+    summary: normalizedSummary,
+    complete,
+    failedBrokers: res.data?.failedBrokers ?? [],
+    failedProducerGroups: res.data?.failedProducerGroups ?? [],
+  };
+}

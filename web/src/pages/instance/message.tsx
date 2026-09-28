@@ -1,0 +1,1320 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  Card,
+  Table,
+  Tag,
+  Modal,
+  Tabs,
+  Descriptions,
+  Steps,
+  Button,
+  Typography,
+  Segmented,
+  Select,
+  DatePicker,
+  Input,
+  Space,
+  Flex,
+  Progress,
+  Statistic,
+  message,
+} from 'antd';
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  SendOutlined,
+  EyeOutlined,
+  NodeIndexOutlined,
+  CheckCircleOutlined,
+  DownloadOutlined,
+  HistoryOutlined,
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
+import PageHeader from '../../components/PageHeader';
+import { InstanceSelect } from '../../components/InstanceSelect';
+import MessageQueryHistoryDrawer from '../../components/MessageQueryHistoryDrawer';
+import {
+  useQueueBrowser,
+  QueueBrowserControls,
+  QueueBrowserResults,
+} from '../../components/QueueBrowser';
+import type { MessageQueryHistory, TraceQueryHistory } from '../../api/messageHistory';
+import { useLang } from '../../i18n/LangContext';
+import type { MessageQuery, MessageRecord, TraceRecord } from '../../api/message';
+import {
+  consumeMessageDirectly,
+  getMessageTrace,
+  getMessageTraceByKey,
+  queryMessagePage,
+} from '../../services/messageService';
+import { listTopics } from '../../services/topicService';
+import { useInstanceFilter } from '../../hooks/useInstanceFilter';
+import { downloadBlob } from '../../utils/download';
+import {
+  readMessageTraceTopic,
+  writeMessageTraceTopic,
+} from '../../utils/messageTraceTopicStorage';
+import { tableScrollX } from '../../utils/table';
+import {
+  analyzeMessageTrace,
+  type MessageTraceDiagnostics,
+  type TraceDiagnosticIssue,
+  type TraceDiagnosticStatus,
+} from '../../utils/messageTraceDiagnostics';
+
+const { Paragraph, Text } = Typography;
+const { RangePicker } = DatePicker;
+
+/* ─── Constants ─── */
+
+type QueryMode = 'topic' | 'key' | 'msgid' | 'queue';
+
+type ApiErrorLike = {
+  message?: unknown;
+  response?: {
+    data?: {
+      message?: unknown;
+    };
+  };
+};
+
+const QUERY_OPTIONS = [
+  { value: 'topic' as const },
+  { value: 'key' as const },
+  { value: 'msgid' as const },
+  { value: 'queue' as const },
+];
+
+const DELIVERY_STATUS_MAP: Record<string, { labelKey: string; color: string }> = {
+  success: { labelKey: 'common.success', color: 'green' },
+  failed: { labelKey: 'common.failure', color: 'red' },
+  pending: { labelKey: 'messagePage.deliveryStatusPending', color: 'gold' },
+};
+
+const TOPIC_TAG_COLORS: Record<string, string> = {
+  'order-create': 'blue',
+  'payment-callback': 'purple',
+  'user-activity-log': 'cyan',
+  'notification-push': 'orange',
+  'inventory-sync': 'green',
+};
+
+/* ─── Default date range: now - 2 days 00:00:00 → now ─── */
+const getDefaultRange = (): [Dayjs, Dayjs] => [dayjs().subtract(2, 'day').startOf('day'), dayjs()];
+
+/* ─── Helpers ─── */
+
+const formatSize = (bytes: number): string => {
+  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(2)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${bytes} B`;
+};
+
+const formatTimeMs = (value: number | string): string => {
+  if (!value) return '-';
+  const d = new Date(value);
+  const pad = (n: number, len = 2) => String(n).padStart(len, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+};
+
+const formatBody = (body: string): string => {
+  try {
+    return JSON.stringify(JSON.parse(body), null, 2);
+  } catch {
+    return body;
+  }
+};
+
+const formatDurationMs = (value: number | null): string => {
+  if (value == null) return '-';
+  if (value >= 60000) return `${(value / 60000).toFixed(1)} min`;
+  if (value >= 1000) return `${(value / 1000).toFixed(2)} s`;
+  return `${value} ms`;
+};
+
+const getQueryValidationError = (
+  mode: QueryMode,
+  params: MessageQuery,
+  t: (key: string) => string,
+): string | null => {
+  if (!params.topic?.trim()) return t('messagePage.selectTopicRequired');
+  if (mode === 'key' && !params.key?.trim()) return t('messagePage.enterMessageKeyRequired');
+  if (mode === 'msgid' && !params.msgId?.trim()) return t('messagePage.enterMessageIdRequired');
+  return null;
+};
+
+const normalizedText = (value: string | undefined): string | undefined =>
+  value?.trim() || undefined;
+
+const normalizeMessageQuery = (mode: QueryMode, params: MessageQuery): MessageQuery => {
+  const topic = normalizedText(params.topic);
+  if (mode === 'msgid') {
+    const msgId = normalizedText(params.msgId);
+    return {
+      ...(topic ? { topic } : {}),
+      ...(msgId ? { msgId } : {}),
+    };
+  }
+
+  const tag = normalizedText(params.tag);
+  const commonParams = {
+    ...(topic ? { topic } : {}),
+    ...(tag ? { tag } : {}),
+    ...(params.startTime !== undefined ? { startTime: params.startTime } : {}),
+    ...(params.endTime !== undefined ? { endTime: params.endTime } : {}),
+  };
+  if (mode === 'key') {
+    const key = normalizedText(params.key);
+    return { ...commonParams, ...(key ? { key } : {}) };
+  }
+  return commonParams;
+};
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  const apiError = error as ApiErrorLike;
+  const responseMessage = apiError.response?.data?.message;
+  if (typeof responseMessage === 'string' && responseMessage.trim()) {
+    return responseMessage;
+  }
+  if (typeof apiError.message === 'string' && apiError.message.trim()) {
+    return apiError.message;
+  }
+  return fallback;
+};
+
+const diagnosticTagColor: Record<TraceDiagnosticStatus, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  critical: 'error',
+};
+
+const diagnosticStatusKey: Record<TraceDiagnosticStatus, string> = {
+  healthy: 'clients.healthStatusHealthy',
+  warning: 'clients.healthStatusWarning',
+  critical: 'messagePage.traceStatusCritical',
+};
+
+const TraceDiagnosticsPanel = ({ diagnostics }: { diagnostics: MessageTraceDiagnostics }) => {
+  const { t } = useLang();
+  const issueData = diagnostics.issues.slice(0, 8);
+
+  return (
+    <Space direction="vertical" size={12} style={{ width: '100%', marginBottom: 16 }}>
+      <Alert
+        showIcon
+        type={diagnostics.statusColor}
+        message={
+          <Flex gap={8} align="center" wrap>
+            <span>{t('messagePage.traceDiagnostics')}</span>
+            <Tag color={diagnosticTagColor[diagnostics.status]}>{t(diagnostics.statusKey)}</Tag>
+            {issueData.map((issue) => (
+              <Tag key={issue.id} color={diagnosticTagColor[issue.severity]}>
+                {t(issue.titleKey, issue.params)}
+              </Tag>
+            ))}
+          </Flex>
+        }
+      />
+      <Flex gap={16} wrap>
+        <div style={{ minWidth: 160 }}>
+          <div style={{ color: '#8c8c8c', marginBottom: 6 }}>{t('messagePage.healthScore')}</div>
+          <Progress
+            percent={diagnostics.score}
+            status={diagnostics.status === 'critical' ? 'exception' : 'normal'}
+            strokeColor={diagnostics.status === 'healthy' ? '#52c41a' : undefined}
+          />
+        </div>
+        <Statistic title={t('messagePage.traceStageCount')} value={diagnostics.summary.nodeCount} />
+        <Statistic
+          title={t('messagePage.endToEndLatency')}
+          value={formatDurationMs(diagnostics.summary.endToEndLatencyMs)}
+        />
+        <Statistic
+          title={t('messagePage.totalStageDuration')}
+          value={formatDurationMs(diagnostics.summary.totalNodeCostMs)}
+        />
+        <Statistic
+          title={t('messagePage.consumeSuccessRate')}
+          value={
+            diagnostics.summary.successfulConsumerRate == null
+              ? '-'
+              : `${diagnostics.summary.successfulConsumerRate}%`
+          }
+        />
+      </Flex>
+      {diagnostics.summary.slowestNode && (
+        <Typography.Text type="secondary">
+          {diagnostics.summary.slowestGap
+            ? t('messagePage.slowestStageWithGap', {
+                title: diagnostics.summary.slowestNode.title,
+                duration: formatDurationMs(diagnostics.summary.slowestNode.valueMs),
+                gapTitle: diagnostics.summary.slowestGap.title,
+                gapDuration: formatDurationMs(diagnostics.summary.slowestGap.valueMs),
+              })
+            : t('messagePage.slowestStage', {
+                title: diagnostics.summary.slowestNode.title,
+                duration: formatDurationMs(diagnostics.summary.slowestNode.valueMs),
+              })}
+        </Typography.Text>
+      )}
+      {issueData.length > 0 && (
+        <Table
+          columns={[
+            {
+              title: t('messagePage.diagSeverity'),
+              dataIndex: 'severity',
+              key: 'severity',
+              width: 90,
+              render: (severity: TraceDiagnosticStatus) => (
+                <Tag color={diagnosticTagColor[severity]}>{t(diagnosticStatusKey[severity])}</Tag>
+              ),
+            },
+            {
+              title: t('messagePage.diagRisk'),
+              dataIndex: 'titleKey',
+              key: 'titleKey',
+              width: 150,
+              render: (_: string, record: TraceDiagnosticIssue) =>
+                t(record.titleKey, record.params),
+            },
+            {
+              title: t('messagePage.diagDescription'),
+              dataIndex: 'descriptionKey',
+              key: 'descriptionKey',
+              render: (_: string, record: TraceDiagnosticIssue) =>
+                t(record.descriptionKey, record.params),
+            },
+          ]}
+          dataSource={issueData}
+          rowKey="id"
+          pagination={false}
+          size="small"
+        />
+      )}
+      {diagnostics.recommendationCodes.length > 0 && (
+        <Space direction="vertical" size={4}>
+          {diagnostics.recommendationCodes.slice(0, 4).map((code) => (
+            <Typography.Text key={code} type="secondary">
+              {t(`messagePage.issue.${code}.recommendation`)}
+            </Typography.Text>
+          ))}
+        </Space>
+      )}
+    </Space>
+  );
+};
+
+/* ═══════════════════════════════════════════
+   MessagePage
+   ═══════════════════════════════════════════ */
+type InstanceFilterProps = {
+  selectedInstanceId: string | undefined;
+  selectInstance: (instanceId: string) => void;
+  instanceOptions: { value: string; label: string }[];
+};
+
+const MessagePage = () => {
+  const { selectedInstanceId, selectInstance, instanceOptions } = useInstanceFilter();
+  // Keying the content by the selected instance makes React remount it whenever the instance
+  // changes — whether from this page's own <Select> or from the shared filter/route elsewhere —
+  // so query results, the detail modal and in-flight request ownership all reset cleanly.
+  return (
+    <MessagePageContent
+      key={selectedInstanceId || 'no-instance'}
+      selectedInstanceId={selectedInstanceId}
+      selectInstance={selectInstance}
+      instanceOptions={instanceOptions}
+    />
+  );
+};
+
+/* ═══════════════════════════════════════════
+   MessagePageContent
+   ═══════════════════════════════════════════ */
+const MessagePageContent = ({
+  selectedInstanceId,
+  selectInstance,
+  instanceOptions,
+}: InstanceFilterProps) => {
+  const { t } = useLang();
+  const [topicOptions, setTopicOptions] = useState<string[]>([]);
+  const [topicError, setTopicError] = useState<string | null>(null);
+  const [topicLoading, setTopicLoading] = useState(false);
+  const topicRequestId = useRef(0);
+
+  const loadTopicOptions = useCallback(async () => {
+    if (!selectedInstanceId) {
+      setTopicOptions([]);
+      setTopicError(null);
+      setTopicLoading(false);
+      return;
+    }
+    const requestId = ++topicRequestId.current;
+    setTopicLoading(true);
+    setTopicError(null);
+    setTopicOptions([]);
+    try {
+      const nextTopics = await listTopics({ instanceId: selectedInstanceId });
+      if (requestId !== topicRequestId.current) return;
+      setTopicOptions(nextTopics.map((topic) => topic.name));
+    } catch (error: unknown) {
+      if (requestId !== topicRequestId.current) return;
+      setTopicError(error instanceof Error ? error.message : t('messagePage.loadTopicsFailed'));
+    } finally {
+      if (requestId === topicRequestId.current) setTopicLoading(false);
+    }
+  }, [selectedInstanceId, t]);
+
+  useEffect(() => {
+    void Promise.resolve().then(loadTopicOptions);
+    return () => {
+      topicRequestId.current += 1;
+    };
+  }, [loadTopicOptions]);
+  const [queryMode, setQueryMode] = useState<QueryMode>('topic');
+  const queueBrowser = useQueueBrowser(selectedInstanceId);
+  const [selectedTopic, setSelectedTopic] = useState<string | undefined>();
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(getDefaultRange);
+  const [keyInput, setKeyInput] = useState('');
+  const [msgIdInput, setMsgIdInput] = useState('');
+  const [messages, setMessages] = useState<MessageRecord[]>([]);
+  const [messageTotal, setMessageTotal] = useState(0);
+  const [messagePage, setMessagePage] = useState(1);
+  const [messagePageSize, setMessagePageSize] = useState(50);
+  const [resultMayBeTruncated, setResultMayBeTruncated] = useState(false);
+  const [queryLoading, setQueryLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTab, setModalTab] = useState('content');
+  const [selectedMsg, setSelectedMsg] = useState<MessageRecord | null>(null);
+  const [traceData, setTraceData] = useState<TraceRecord | null>(null);
+  const [traceLoading, setTraceLoading] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [traceError, setTraceError] = useState<string | null>(null);
+  const [traceQueryMode, setTraceQueryMode] = useState<'msgid' | 'key'>('msgid');
+  const [traceQueryValue, setTraceQueryValue] = useState('');
+  const [customTraceTopic, setCustomTraceTopic] = useState(() =>
+    readMessageTraceTopic(selectedInstanceId),
+  );
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [directConsumeOpen, setDirectConsumeOpen] = useState(false);
+  const [directConsumeGroup, setDirectConsumeGroup] = useState('');
+  const [directConsumeClientId, setDirectConsumeClientId] = useState('');
+  const [directConsumeSubmitting, setDirectConsumeSubmitting] = useState(false);
+  const queryGenerationRef = useRef(0);
+  // The query whose results the table currently shows. Pagination must re-run this
+  // committed query, not whatever the form inputs hold at the moment a page is clicked.
+  const committedQueryRef = useRef<{ mode: QueryMode; params: MessageQuery } | null>(null);
+  const traceGenerationRef = useRef(0);
+  const traceCacheRef = useRef(new Map<string, Promise<TraceRecord | null>>());
+  const traceDiagnostics = useMemo(() => analyzeMessageTrace(traceData), [traceData]);
+
+  useEffect(
+    () => () => {
+      queryGenerationRef.current += 1;
+      traceGenerationRef.current += 1;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    writeMessageTraceTopic(selectedInstanceId, customTraceTopic);
+  }, [customTraceTopic, selectedInstanceId]);
+
+  const currentQueryParams: MessageQuery =
+    queryMode === 'topic'
+      ? { topic: selectedTopic, startTime: dateRange[0].valueOf(), endTime: dateRange[1].valueOf() }
+      : queryMode === 'key'
+        ? { topic: selectedTopic, key: keyInput || undefined }
+        : { topic: selectedTopic, msgId: msgIdInput || undefined };
+  const queryValidationError = getQueryValidationError(queryMode, currentQueryParams, t);
+  const queryDisabledReason = !selectedInstanceId
+    ? t('messagePage.selectInstanceFirst')
+    : topicLoading
+      ? t('messagePage.loadingTopics')
+      : topicError
+        ? t('messagePage.topicLoadFailedRetry')
+        : queryValidationError;
+
+  /* ─── Handlers ─── */
+  const clearQueryResults = () => {
+    setMessages([]);
+    setMessageTotal(0);
+    setMessagePage(1);
+    setResultMayBeTruncated(false);
+    setQueryError(null);
+    setQueryLoading(false);
+    committedQueryRef.current = null;
+  };
+
+  const handleReset = () => {
+    queryGenerationRef.current += 1;
+    setSelectedTopic(undefined);
+    setKeyInput('');
+    setMsgIdInput('');
+    setDateRange(getDefaultRange());
+    clearQueryResults();
+  };
+
+  const handleQueryModeChange = (mode: QueryMode) => {
+    if (mode === queryMode) return;
+    queryGenerationRef.current += 1;
+    setQueryMode(mode);
+    clearQueryResults();
+  };
+
+  const executeQuery = async (
+    mode: QueryMode,
+    params: MessageQuery,
+    page = 1,
+    pageSize = messagePageSize,
+  ) => {
+    const requestGeneration = queryGenerationRef.current + 1;
+    queryGenerationRef.current = requestGeneration;
+    if (!selectedInstanceId) {
+      setQueryError(t('messagePage.selectInstanceBeforeQuery'));
+      setQueryLoading(false);
+      return;
+    }
+    const normalizedParams = normalizeMessageQuery(mode, params);
+    const validationError = getQueryValidationError(mode, normalizedParams, t);
+    if (validationError) {
+      setQueryError(validationError);
+      setQueryLoading(false);
+      return;
+    }
+    setQueryLoading(true);
+    setQueryError(null);
+    try {
+      const result = await queryMessagePage({
+        ...normalizedParams,
+        instanceId: selectedInstanceId,
+        page,
+        pageSize,
+      });
+      if (queryGenerationRef.current !== requestGeneration) return;
+      // Commit only the query whose results are actually on screen: a failed or superseded
+      // request must not become the query that pagination re-runs.
+      committedQueryRef.current = { mode, params: normalizedParams };
+      setMessages(result.items);
+      setMessageTotal(result.total);
+      setMessagePage(result.page);
+      setMessagePageSize(result.size);
+      setResultMayBeTruncated(result.resultMayBeTruncated);
+      setQueryError(null);
+      message.success(t('messagePage.queryCompleted', { total: result.total }));
+    } catch (error) {
+      if (queryGenerationRef.current === requestGeneration) {
+        setQueryError(getErrorMessage(error, t('messagePage.queryFailed')));
+      }
+    } finally {
+      if (queryGenerationRef.current === requestGeneration) {
+        setQueryLoading(false);
+      }
+    }
+  };
+
+  const handleQuery = async () => {
+    await executeQuery(queryMode, currentQueryParams);
+  };
+
+  const replayHistoryRecord = async (record: MessageQueryHistory) => {
+    const modeMap: Record<string, QueryMode> = { TOPIC: 'topic', KEY: 'key', MSG_ID: 'msgid' };
+    const mode = modeMap[record.queryType] || 'topic';
+    handleQueryModeChange(mode);
+    setSelectedTopic(record.topic);
+    setKeyInput(record.messageKey || '');
+    setMsgIdInput(record.msgId || '');
+    if (mode === 'topic' && record.startTime !== undefined && record.endTime !== undefined) {
+      setDateRange([dayjs(record.startTime), dayjs(record.endTime)]);
+    }
+    setHistoryDrawerOpen(false);
+    // Re-run the historical query through the same live path so it is normalized and committed
+    // exactly like a normal search: the displayed page and any later pagination then share one
+    // query. Loading the archived snapshot here instead would splice snapshot page 1 with a live
+    // page 2 on the next pagination click — the very mix this fix removes.
+    const params: MessageQuery =
+      mode === 'topic'
+        ? {
+            topic: record.topic,
+            ...(record.startTime !== undefined ? { startTime: record.startTime } : {}),
+            ...(record.endTime !== undefined ? { endTime: record.endTime } : {}),
+          }
+        : mode === 'key'
+          ? { topic: record.topic, key: record.messageKey || undefined }
+          : { topic: record.topic, msgId: record.msgId || undefined };
+    await executeQuery(mode, params);
+  };
+
+  const replayTraceRecord = (record: TraceQueryHistory) => {
+    handleQueryModeChange('msgid');
+    setSelectedTopic(record.topic);
+    setMsgIdInput(record.msgId);
+    setCustomTraceTopic(record.traceTopic?.trim() || '');
+    setHistoryDrawerOpen(false);
+    void executeQuery('msgid', { topic: record.topic, msgId: record.msgId });
+  };
+
+  const handleVerifyConsume = () => {
+    message.warning(t('messagePage.verifyNotAvailable'));
+  };
+  const loadMessageTrace = async (record: MessageRecord) => {
+    const requestGeneration = traceGenerationRef.current + 1;
+    traceGenerationRef.current = requestGeneration;
+    setTraceData(null);
+    setTraceLoading(true);
+    setTraceError(null);
+    setTraceQueryMode('msgid');
+    setTraceQueryValue(record.msgId);
+    const normalizedTraceTopic = customTraceTopic.trim();
+    const cacheKey = JSON.stringify([
+      selectedInstanceId,
+      record.topic,
+      record.msgId,
+      normalizedTraceTopic,
+    ]);
+    let traceRequest = traceCacheRef.current.get(cacheKey);
+    if (!traceRequest) {
+      traceRequest = getMessageTrace(
+        record.msgId,
+        selectedInstanceId,
+        record.topic,
+        normalizedTraceTopic,
+      ).catch((error) => {
+        traceCacheRef.current.delete(cacheKey);
+        throw error;
+      });
+      traceCacheRef.current.set(cacheKey, traceRequest);
+    }
+    try {
+      const result = await traceRequest;
+      if (traceGenerationRef.current !== requestGeneration) return;
+      setTraceData(result);
+      setTraceError(null);
+    } catch (error) {
+      if (traceGenerationRef.current === requestGeneration) {
+        setTraceError(getErrorMessage(error, t('messagePage.traceLoadFailed')));
+      }
+    } finally {
+      if (traceGenerationRef.current === requestGeneration) {
+        setTraceLoading(false);
+      }
+    }
+  };
+
+  const openDetail = (record: MessageRecord, tab = 'content') => {
+    traceGenerationRef.current += 1;
+    setSelectedMsg(record);
+    setModalTab(tab);
+    setModalOpen(true);
+    setTraceData(null);
+    setTraceLoading(false);
+    setTraceError(null);
+    if (tab === 'trace') void loadMessageTrace(record);
+  };
+
+  const handleModalTabChange = (tab: string) => {
+    setModalTab(tab);
+    if (tab === 'trace' && selectedMsg) void loadMessageTrace(selectedMsg);
+  };
+
+  const runTraceQuery = async () => {
+    const requestGeneration = traceGenerationRef.current + 1;
+    traceGenerationRef.current = requestGeneration;
+    const value = traceQueryValue.trim();
+    if (!value) {
+      // The bump above already invalidated any in-flight trace load, so its guarded
+      // finally block will never reset traceLoading — stop it here instead.
+      setTraceData(null);
+      setTraceLoading(false);
+      setTraceError(
+        traceQueryMode === 'key'
+          ? t('messagePage.enterMessageKeyRequired')
+          : t('messagePage.enterMessageIdRequired'),
+      );
+      return;
+    }
+    setTraceData(null);
+    setTraceLoading(true);
+    setTraceError(null);
+    try {
+      const result =
+        traceQueryMode === 'key'
+          ? await getMessageTraceByKey(
+              value,
+              selectedInstanceId,
+              selectedMsg?.topic,
+              customTraceTopic,
+            )
+          : await getMessageTrace(value, selectedInstanceId, selectedMsg?.topic, customTraceTopic);
+      if (traceGenerationRef.current !== requestGeneration) return;
+      setTraceData(result);
+      setTraceError(null);
+    } catch (error) {
+      if (traceGenerationRef.current === requestGeneration) {
+        setTraceError(getErrorMessage(error, t('messagePage.traceLoadFailed')));
+      }
+    } finally {
+      if (traceGenerationRef.current === requestGeneration) {
+        setTraceLoading(false);
+      }
+    }
+  };
+
+  const closeDetail = () => {
+    traceGenerationRef.current += 1;
+    setModalOpen(false);
+    setTraceLoading(false);
+    setTraceError(null);
+  };
+
+  const openDirectConsume = () => {
+    setDirectConsumeGroup('');
+    setDirectConsumeClientId('');
+    setDirectConsumeOpen(true);
+  };
+
+  const handleDirectConsume = async () => {
+    if (
+      !selectedInstanceId ||
+      !selectedMsg ||
+      !directConsumeGroup.trim() ||
+      !directConsumeClientId.trim()
+    ) {
+      message.warning(t('messagePage.directConsumeRequired'));
+      return;
+    }
+    setDirectConsumeSubmitting(true);
+    try {
+      const result = await consumeMessageDirectly({
+        instanceId: selectedInstanceId,
+        topic: selectedMsg.topic,
+        msgId: selectedMsg.msgId,
+        consumerGroup: directConsumeGroup.trim(),
+        clientId: directConsumeClientId.trim(),
+      });
+      const detail = [result.consumeResult, result.remark].filter(Boolean).join('：');
+      message.info(
+        t('messagePage.directConsumeResult', {
+          detail: detail || 'UNKNOWN',
+          time: result.spentTimeMillis,
+        }),
+      );
+      setDirectConsumeOpen(false);
+    } catch (error) {
+      message.error(getErrorMessage(error, t('messagePage.directConsumeFailed')));
+    } finally {
+      setDirectConsumeSubmitting(false);
+    }
+  };
+
+  const handleDownload = async (record: MessageRecord) => {
+    const blob = new Blob([formatBody(record.body)], { type: 'application/json' });
+    try {
+      await downloadBlob(blob, `${record.msgId}.json`);
+      message.success(t('messagePage.downloadSuccess'));
+    } catch (error) { message.error(String(error)); }
+  };
+
+  /* ─── Table Columns ─── */
+  const columns: ColumnsType<MessageRecord> = [
+    {
+      title: 'Topic',
+      dataIndex: 'topic',
+      key: 'topic',
+      // 唯一可伸展列：容器比表宽时余量集中在此，其余列保持声明宽度
+      minWidth: 170,
+      ellipsis: true,
+      sorter: (a, b) => a.topic.localeCompare(b.topic),
+      render: (topic: string) => (
+        <Text strong style={{ fontSize: 14 }}>
+          {topic}
+        </Text>
+      ),
+    },
+    {
+      title: 'Tag',
+      dataIndex: 'tag',
+      key: 'tag',
+      width: 80,
+      render: (tag: string | null) => <Tag>{tag || '-'}</Tag>,
+    },
+    {
+      title: 'Key',
+      dataIndex: 'key',
+      key: 'key',
+      minWidth: 120,
+      ellipsis: true,
+      render: (key: string | null) => (
+        <span style={{ fontFamily: 'monospace', fontSize: 14 }}>{key || '-'}</span>
+      ),
+    },
+    {
+      title: 'Message ID',
+      dataIndex: 'msgId',
+      key: 'msgId',
+      minWidth: 260,
+      render: (id: string) => (
+        <Text
+          copyable={{ text: id }}
+          ellipsis={{ tooltip: id }}
+          style={{ fontSize: 14, fontFamily: 'monospace', width: '100%', display: 'block' }}
+        >
+          {id}
+        </Text>
+      ),
+    },
+    {
+      title: t('messagePage.storeTime'),
+      dataIndex: 'storeTime',
+      key: 'storeTime',
+      width: 185,
+      sorter: (a, b) => new Date(a.storeTime).valueOf() - new Date(b.storeTime).valueOf(),
+      render: (time: string) => (
+        <span style={{ fontFamily: 'monospace', fontSize: 14, whiteSpace: 'nowrap' }}>
+          {formatTimeMs(time)}
+        </span>
+      ),
+    },
+    {
+      title: t('messagePage.size'),
+      dataIndex: 'size',
+      key: 'size',
+      width: 80,
+      align: 'right',
+      render: (size: number) => formatSize(size),
+    },
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: 260,
+      render: (_: unknown, record: MessageRecord) => (
+        <Flex gap={6} justify="flex-end">
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            style={{ borderColor: '#1677ff', color: '#1677ff' }}
+            onClick={() => void openDetail(record, 'content')}
+          >
+            {t('common.detail')}
+          </Button>
+          <Button
+            size="small"
+            icon={<NodeIndexOutlined />}
+            style={{ borderColor: '#722ed1', color: '#722ed1' }}
+            onClick={() => void openDetail(record, 'trace')}
+          >
+            {t('messagePage.trace')}
+          </Button>
+          <Button
+            size="small"
+            icon={<CheckCircleOutlined />}
+            style={{ borderColor: '#52c41a', color: '#52c41a' }}
+            onClick={handleVerifyConsume}
+          >
+            {t('messagePage.verify')}
+          </Button>
+          <Button
+            size="small"
+            icon={<DownloadOutlined />}
+            style={{ borderColor: '#fa8c16', color: '#fa8c16' }}
+            onClick={() => handleDownload(record)}
+          >
+            {t('messagePage.download')}
+          </Button>
+        </Flex>
+      ),
+    },
+  ];
+
+  const consumerStatusColumns: ColumnsType<{
+    group: string;
+    deliveryStatus: string;
+    consumeTime: number | string;
+    retryCount: number;
+  }> = [
+    {
+      title: t('topic.consumerGroup'),
+      dataIndex: 'group',
+      key: 'group',
+      render: (g: string) => <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{g}</span>,
+    },
+    {
+      title: t('messagePage.deliveryStatus'),
+      dataIndex: 'deliveryStatus',
+      key: 'deliveryStatus',
+      render: (status: string) => {
+        const s = DELIVERY_STATUS_MAP[(status ?? '').toLowerCase()] || {
+          labelKey: status,
+          color: 'default',
+        };
+        return <Tag color={s.color}>{t(s.labelKey)}</Tag>;
+      },
+    },
+    {
+      title: t('messagePage.consumeTime'),
+      dataIndex: 'consumeTime',
+      key: 'consumeTime',
+      render: (time: string) =>
+        time === '-' ? (
+          <span style={{ color: '#9CA3AF' }}>-</span>
+        ) : (
+          <span style={{ fontFamily: 'monospace', fontSize: 14 }}>{formatTimeMs(time)}</span>
+        ),
+    },
+    {
+      title: t('messagePage.retryCount'),
+      dataIndex: 'retryCount',
+      key: 'retryCount',
+      align: 'center',
+      render: (count: number) => (
+        <span style={{ color: count > 0 ? '#ff4d4f' : undefined }}>{count}</span>
+      ),
+    },
+  ];
+
+  /* ─── Modal Tab Items ─── */
+  const modalTabs = [
+    {
+      key: 'content',
+      label: t('messagePage.tabContent'),
+      children: selectedMsg && (
+        <>
+          <Descriptions column={2} size="small" style={{ marginBottom: 24 }}>
+            <Descriptions.Item label="Message ID" span={2}>
+              <Paragraph copyable style={{ marginBottom: 0, fontFamily: 'monospace' }}>
+                {selectedMsg.msgId}
+              </Paragraph>
+            </Descriptions.Item>
+            <Descriptions.Item label="Topic">
+              <Tag color={TOPIC_TAG_COLORS[selectedMsg.topic] || 'default'}>
+                {selectedMsg.topic}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Tag">
+              <Tag>{selectedMsg.tag}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Key">
+              <span style={{ fontFamily: 'monospace' }}>{selectedMsg.key}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label={t('messagePage.size')}>
+              {formatSize(selectedMsg.size)}
+            </Descriptions.Item>
+            <Descriptions.Item label={t('messagePage.reconsumeTimes')}>
+              <span style={{ fontFamily: 'monospace' }}>{selectedMsg.reconsumeTimes ?? '-'}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="Born Host">
+              <span style={{ fontFamily: 'monospace' }}>{selectedMsg.bornHost}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="Store Host">
+              <span style={{ fontFamily: 'monospace' }}>{selectedMsg.storeHost}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label={t('messagePage.storeTime')} span={2}>
+              <span style={{ fontFamily: 'monospace' }}>{formatTimeMs(selectedMsg.storeTime)}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="Broker">
+              <span style={{ fontFamily: 'monospace' }}>{selectedMsg.brokerName ?? '-'}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="Queue ID">
+              <span style={{ fontFamily: 'monospace' }}>{selectedMsg.queueId ?? '-'}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="Queue Offset" span={2}>
+              <span style={{ fontFamily: 'monospace' }}>{selectedMsg.queueOffset ?? '-'}</span>
+            </Descriptions.Item>
+          </Descriptions>
+          <Typography.Title level={5} style={{ marginBottom: 8 }}>
+            {t('topic.messageBody')}
+          </Typography.Title>
+          <Paragraph
+            copyable
+            style={{
+              background: '#f5f5f5',
+              padding: '12px 16px',
+              borderRadius: 6,
+              fontFamily: "'SF Mono', Monaco, 'Cascadia Code', Consolas, monospace",
+              fontSize: 14,
+              lineHeight: 1.7,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+              marginBottom: 0,
+            }}
+          >
+            {formatBody(selectedMsg.body)}
+          </Paragraph>
+        </>
+      ),
+    },
+    {
+      key: 'trace',
+      label: t('messagePage.tabTrace'),
+      children: (
+        <>
+          <Space wrap size={8} style={{ marginBottom: 16 }}>
+            <Segmented
+              size="small"
+              options={[
+                { value: 'msgid', label: t('messagePage.queryMode.msgid') },
+                { value: 'key', label: t('messagePage.queryMode.key') },
+              ]}
+              value={traceQueryMode}
+              onChange={(value) => setTraceQueryMode(value as 'msgid' | 'key')}
+            />
+            <Input
+              size="small"
+              style={{ width: 300 }}
+              placeholder={
+                traceQueryMode === 'key'
+                  ? t('messagePage.inputKeyPlaceholder')
+                  : t('messagePage.traceMsgIdPlaceholder')
+              }
+              value={traceQueryValue}
+              onChange={(event) => setTraceQueryValue(event.target.value)}
+            />
+            <Input
+              size="small"
+              style={{ width: 260 }}
+              placeholder={t('messagePage.traceTopicPlaceholder')}
+              value={customTraceTopic}
+              onChange={(event) => setCustomTraceTopic(event.target.value)}
+              allowClear
+            />
+            <Button
+              size="small"
+              type="primary"
+              icon={<SearchOutlined />}
+              onClick={() => void runTraceQuery()}
+            >
+              {t('messagePage.queryTrace')}
+            </Button>
+          </Space>
+          {traceLoading ? (
+            <Typography.Text type="secondary">{t('messagePage.loadingTrace')}</Typography.Text>
+          ) : traceError ? (
+            <Alert showIcon type="warning" message={traceError} />
+          ) : traceData?.nodes?.length ? (
+            <Space direction="vertical" size={16} style={{ width: '100%' }}>
+              <TraceDiagnosticsPanel diagnostics={traceDiagnostics} />
+              <Steps
+                direction="vertical"
+                size="small"
+                items={traceData.nodes.map((node) => ({
+                  title: node.title,
+                  description: (
+                    <div style={{ fontSize: 14 }}>
+                      <div style={{ color: '#9CA3AF', fontFamily: 'monospace' }}>
+                        {formatTimeMs(node.timestamp)}
+                      </div>
+                      <div style={{ marginTop: 2 }}>{node.description}</div>
+                      <div style={{ color: '#9CA3AF', fontSize: 14 }}>
+                        {t('messagePage.nodeCost', { time: node.costTime })}
+                      </div>
+                    </div>
+                  ),
+                  status: node.status,
+                }))}
+              />
+            </Space>
+          ) : (
+            <Typography.Text type="secondary">{t('messagePage.noTraceData')}</Typography.Text>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'consumer',
+      label: t('messagePage.verify'),
+      children: (
+        <Table
+          columns={consumerStatusColumns}
+          dataSource={traceData?.consumerStatus?.map((c, i) => ({ ...c, _key: i })) || []}
+          rowKey="_key"
+          pagination={false}
+          size="small"
+        />
+      ),
+    },
+  ];
+
+  /* ═══════════════════════════════════════════
+     Render
+     ═══════════════════════════════════════════ */
+  return (
+    <div style={{ padding: 24 }}>
+      <PageHeader title={t('message.title')} subtitle={t('messagePage.subtitle')} />
+
+      {/* ── Query Form ── */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Space size={12}>
+            <InstanceSelect
+              value={selectedInstanceId || undefined}
+              onChange={selectInstance}
+              options={instanceOptions}
+              style={{ width: 220 }}
+            />
+            <Segmented
+              options={QUERY_OPTIONS.map(({ value }) => ({
+                value,
+                label: t(`messagePage.queryMode.${value}`),
+              }))}
+              value={queryMode}
+              onChange={(v) => handleQueryModeChange(v as QueryMode)}
+            />
+          </Space>
+
+          {queryMode !== 'queue' && (
+            <Space wrap size={12}>
+              {queryMode === 'topic' && (
+                <>
+                  <Select
+                    placeholder={t('messagePage.topicPlaceholder')}
+                    style={{ width: 360 }}
+                    value={selectedTopic}
+                    onChange={setSelectedTopic}
+                    allowClear
+                    showSearch
+                    loading={topicLoading}
+                    disabled={topicLoading || Boolean(topicError)}
+                    options={topicOptions.map((t) => ({
+                      value: t,
+                      label: t,
+                    }))}
+                  />
+                  <RangePicker
+                    showTime
+                    style={{ width: 400 }}
+                    value={dateRange}
+                    onChange={(vals) => {
+                      if (vals && vals[0] && vals[1]) {
+                        setDateRange([vals[0], vals[1]]);
+                      }
+                    }}
+                  />
+                </>
+              )}
+
+              {queryMode === 'key' && (
+                <>
+                  <Select
+                    placeholder={t('messagePage.topicPlaceholder')}
+                    style={{ width: 360 }}
+                    value={selectedTopic}
+                    onChange={setSelectedTopic}
+                    allowClear
+                    showSearch
+                    loading={topicLoading}
+                    disabled={topicLoading || Boolean(topicError)}
+                    options={topicOptions.map((t) => ({
+                      value: t,
+                      label: t,
+                    }))}
+                  />
+                  <Input
+                    placeholder={t('messagePage.inputKeyPlaceholder')}
+                    style={{ width: 240 }}
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                  />
+                </>
+              )}
+
+              {queryMode === 'msgid' && (
+                <>
+                  <Select
+                    placeholder={t('messagePage.topicPlaceholder')}
+                    style={{ width: 360 }}
+                    value={selectedTopic}
+                    onChange={setSelectedTopic}
+                    allowClear
+                    showSearch
+                    loading={topicLoading}
+                    disabled={topicLoading || Boolean(topicError)}
+                    options={topicOptions.map((t) => ({
+                      value: t,
+                      label: t,
+                    }))}
+                  />
+                  <Input
+                    placeholder={t('messagePage.inputMsgIdPlaceholder')}
+                    style={{ width: 400 }}
+                    value={msgIdInput}
+                    onChange={(e) => setMsgIdInput(e.target.value)}
+                  />
+                </>
+              )}
+
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                disabled={Boolean(queryDisabledReason)}
+                title={queryDisabledReason || undefined}
+                onClick={() => {
+                  void handleQuery();
+                }}
+              >
+                {t('messagePage.query')}
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>
+                {t('common.reset')}
+              </Button>
+              <Button icon={<HistoryOutlined />} onClick={() => setHistoryDrawerOpen(true)}>
+                {t('messagePage.serverHistory')}
+              </Button>
+            </Space>
+          )}
+
+          {queryMode === 'queue' && (
+            <QueueBrowserControls
+              instanceId={selectedInstanceId}
+              state={queueBrowser}
+              topicOptions={topicOptions.map((t) => ({ label: t, value: t }))}
+              topicLoading={topicLoading}
+            />
+          )}
+        </Space>
+      </Card>
+
+      {queryMode === 'queue' && <QueueBrowserResults state={queueBrowser} />}
+
+      {topicError && (
+        <Alert
+          showIcon
+          type="error"
+          message={t('messagePage.topicLoadFailed')}
+          description={topicError}
+          action={
+            <Button size="small" onClick={() => void loadTopicOptions()}>
+              {t('common.retry')}
+            </Button>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      <MessageQueryHistoryDrawer
+        open={historyDrawerOpen}
+        clusterId={selectedInstanceId}
+        onClose={() => setHistoryDrawerOpen(false)}
+        onSelectMessage={replayHistoryRecord}
+        onSelectTrace={replayTraceRecord}
+      />
+
+      {queryError && (
+        <Alert showIcon type="warning" message={queryError} style={{ marginBottom: 16 }} />
+      )}
+      {queryMode !== 'queue' && resultMayBeTruncated && (
+        <Alert
+          showIcon
+          type="warning"
+          message={t('messagePage.truncatedWarning')}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {/* ── Results Table ── */}
+      {queryMode !== 'queue' && (
+        <Card styles={{ body: { padding: 0 } }}>
+          <Table
+            columns={columns}
+            dataSource={messages}
+            loading={queryLoading}
+            rowKey="msgId"
+            pagination={{
+              current: messagePage,
+              pageSize: messagePageSize,
+              total: messageTotal,
+              showSizeChanger: true,
+              showTotal: (total) => t('messagePage.totalMessages', { total }),
+              onChange: (page, pageSize) => {
+                const committed = committedQueryRef.current;
+                if (!committed) return;
+                void executeQuery(committed.mode, committed.params, page, pageSize);
+              },
+            }}
+            size="small"
+            tableLayout="fixed"
+            scroll={{ x: tableScrollX(columns) }}
+          />
+        </Card>
+      )}
+
+      {/* ── Message Detail Modal ── */}
+      <Modal
+        title={t('message.detail')}
+        width={800}
+        open={modalOpen}
+        onCancel={closeDetail}
+        destroyOnHidden
+        footer={
+          <Flex justify="flex-end" gap={8}>
+            <Button onClick={closeDetail}>{t('common.close')}</Button>
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              disabled={!selectedInstanceId || !selectedMsg}
+              onClick={openDirectConsume}
+            >
+              {t('messagePage.directConsume')}
+            </Button>
+          </Flex>
+        }
+      >
+        <Tabs activeKey={modalTab} onChange={handleModalTabChange} items={modalTabs} />
+      </Modal>
+
+      <Modal
+        title={t('messagePage.directConsumeTitle')}
+        open={directConsumeOpen}
+        onCancel={() => setDirectConsumeOpen(false)}
+        onOk={() => void handleDirectConsume()}
+        confirmLoading={directConsumeSubmitting}
+        okText={t('messagePage.execute')}
+        destroyOnHidden
+      >
+        <Alert
+          showIcon
+          type="warning"
+          message={t('messagePage.directConsumeHint')}
+          description={t('messagePage.directConsumeNote')}
+          style={{ marginBottom: 16 }}
+        />
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Input value={selectedMsg?.topic} disabled addonBefore="Topic" />
+          <Input value={selectedMsg?.msgId} disabled addonBefore="Message ID" />
+          <Input
+            value={directConsumeGroup}
+            onChange={(event) => setDirectConsumeGroup(event.target.value)}
+            placeholder={t('messagePage.consumerGroupPlaceholder')}
+            addonBefore="Consumer group"
+          />
+          <Input
+            value={directConsumeClientId}
+            onChange={(event) => setDirectConsumeClientId(event.target.value)}
+            placeholder={t('messagePage.clientIdPlaceholder')}
+            addonBefore="Client ID"
+          />
+        </Space>
+      </Modal>
+    </div>
+  );
+};
+
+export default MessagePage;

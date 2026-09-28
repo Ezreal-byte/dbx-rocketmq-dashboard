@@ -1,0 +1,121 @@
+name: Test and build Dashboard
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '4.9.7'
+            services: 'namesrv4 broker4'
+            broker: 'broker4'
+            nameserver: '127.0.0.1:19876'
+          - version: '5.3.3'
+            services: 'namesrv5 broker5'
+            broker: 'broker5'
+            nameserver: '127.0.0.1:29876'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.20.14'
+          cache-dependency-path: backend/go.sum
+      - name: Start isolated RocketMQ
+        run: docker compose -f tests/compose.yaml up -d ${{ matrix.services }}
+      - name: Wait for Broker registration
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker compose -f tests/compose.yaml logs --no-color ${{ matrix.broker }} | grep -q 'boot success'; then
+              sleep 5
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f tests/compose.yaml logs --tail 80
+          exit 1
+      - name: Studio API integration
+        working-directory: backend
+        env:
+          ROCKETMQ_INTEGRATION: '1'
+          ROCKETMQ_NAMESRV_ADDR: ${{ matrix.nameserver }}
+          ROCKETMQ_VERSION: ${{ matrix.version }}
+        run: go test -count=1 -timeout 180s -v -run TestStudio ./...
+      - name: Stop test services
+        if: always()
+        run: docker compose -f tests/compose.yaml down
+
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.20.14'
+          cache-dependency-path: backend/go.sum
+      - name: Build official Studio frontend
+        run: |
+          npm ci --prefix web --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+      - name: Test transport and backend
+        run: |
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go -C backend test -count=1 -timeout 180s ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go -C backend/sdk test ./...
+      - name: Collect licenses and package Windows x64
+        run: |
+          node scripts/third-party-licenses.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go run scripts/package-cross.go -target windows-x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/verify-package.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/release-metadata.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-unsigned
+          path: |
+            dist/*.dbxp
+            dist/*.artifact.json
+            dist/release-candidates.json
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, integration]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-x64-unsigned
+          path: dist
+      - name: Verify version and publish unsigned candidates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("manifest.json","utf8")); if(process.env.RELEASE_TAG!=="v"+p.version) process.exit(1);'
+          gh release create "$RELEASE_TAG" dist/*.dbxp dist/*.artifact.json dist/release-candidates.json --verify-tag --title "dbx-rocketmq-dashboard $RELEASE_TAG" --notes-file docs/RELEASE_0.3.0.md

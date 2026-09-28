@@ -1,0 +1,252 @@
+/* Login page — floating orbs background (same recipe as the home page) +
+   a single centered glass card. Keyframes (oneday-orb-drift-*, oneday-bg-drift)
+   are defined globally in src/index.css. */
+
+.login-page {
+  --login-border: rgba(255, 255, 255, 0.75);
+  --login-muted: #7c7670;
+  --login-page-bg: #ffffff;
+  --login-surface: rgba(255, 255, 255, 0.72);
+  --login-input-bg: rgba(255, 255, 255, 0.85);
+  --login-input-border: #e4e4e7;
+  --login-text: #1b1b1a;
+  align-items: center;
+  background: var(--login-page-bg);
+  color: var(--login-text);
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: auto;
+  padding: 48px 24px;
+  position: relative;
+}
+
+.login-page[data-theme='dark'] {
+  --login-border: rgba(255, 255, 255, 0.1);
+  --login-muted: #a1a1aa;
+  --login-page-bg: #101014;
+  --login-surface: rgba(24, 24, 30, 0.66);
+  --login-input-bg: rgba(39, 39, 46, 0.72);
+  --login-input-border: #3f3f46;
+  --login-text: #f4f4f5;
+}
+
+/* ── Floating orbs backdrop ── */
+.login-orbs {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+}
+
+.login-orb {
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.login-noise {
+  inset: 0;
+  mix-blend-mode: multiply;
+  opacity: 0.025;
+  position: absolute;
+}
+
+.login-page[data-theme='dark'] .login-orb {
+  opacity: 0.22;
+}
+
+.login-page[data-theme='dark'] .login-noise {
+  mix-blend-mode: screen;
+  opacity: 0.04;
+}
+
+/* ── Theme toggle ── */
+.login-theme-action {
+  position: absolute;
+  right: 28px;
+  top: 24px;
+  z-index: 2;
+}
+
+.login-theme-action .ant-btn {
+  color: var(--login-muted);
+}
+
+/* ── Glass card ── */
+.login-card {
+  animation: float-in 0.6s ease-out both;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background: var(--login-surface);
+  border: 1.5px solid var(--login-border);
+  border-radius: 24px;
+  box-shadow: 0 20px 60px -20px rgba(80, 90, 180, 0.18);
+  max-width: 480px;
+  padding: 48px 44px 32px;
+  position: relative;
+  width: 100%;
+  z-index: 1;
+}
+
+/* ── Brand lockup ── */
+.login-brand-lockup {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+
+.login-brand-mark {
+  align-items: center;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 8px 20px -8px rgba(124, 58, 237, 0.5);
+  color: #ffffff;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 20px;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.login-brand-name {
+  background: linear-gradient(to right, #7c3aed, #d946ef, #f97316);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.login-brand-eyebrow {
+  background: var(--login-input-bg);
+  border: 1px solid var(--login-input-border);
+  border-radius: 999px;
+  color: var(--login-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 12px;
+}
+
+/* ── Headline ── */
+.login-headline {
+  margin-bottom: 32px;
+}
+
+.login-headline-title.ant-typography {
+  color: var(--login-text);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin: 0 0 10px;
+}
+
+.login-headline-description.ant-typography {
+  color: var(--login-muted);
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ── Form ── */
+.login-form-shell .ant-form-item-label > label {
+  color: var(--login-text);
+  font-weight: 600;
+}
+
+.login-form-shell .ant-input-affix-wrapper,
+.login-form-shell .ant-input {
+  background: var(--login-input-bg);
+  border-color: var(--login-input-border);
+}
+
+.login-form-shell .ant-input-affix-wrapper {
+  min-height: 42px;
+}
+
+.login-form-shell .ant-input {
+  color: var(--login-text);
+}
+
+.login-form-shell .ant-input::placeholder {
+  color: var(--login-muted);
+}
+
+.login-form-shell .ant-input-prefix,
+.login-form-shell .ant-input-password-icon {
+  color: var(--login-muted);
+}
+
+.login-submit-item {
+  margin-top: 28px;
+}
+
+.login-submit-item .ant-btn {
+  background: linear-gradient(to right, #8b5cf6, #7c3aed);
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px -10px rgba(124, 58, 237, 0.6);
+  font-weight: 600;
+  height: 44px;
+}
+
+.login-submit-item .ant-btn:hover {
+  background: linear-gradient(to right, #7c3aed, #6d28d9);
+}
+
+/* ── Card footer ── */
+.login-card-footer {
+  align-items: center;
+  border-top: 1px solid var(--login-input-border);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 36px;
+  padding-top: 18px;
+}
+
+.login-status {
+  align-items: center;
+  color: var(--login-muted);
+  display: flex;
+  font-size: 14px;
+  gap: 8px;
+}
+
+.login-status-dot {
+  background: #43c878;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(67, 200, 120, 0.16);
+  height: 8px;
+  width: 8px;
+}
+
+.login-form-footer {
+  color: var(--login-muted);
+  font-size: 14px;
+}
+
+@media (max-width: 560px) {
+  .login-page {
+    padding: 32px 16px;
+  }
+
+  .login-card {
+    padding: 36px 24px 24px;
+  }
+
+  .login-headline-title.ant-typography {
+    font-size: 24px;
+  }
+
+  .login-card-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+}

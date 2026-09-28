@@ -1,0 +1,13 @@
+# Disposable local test accounts; never use these credentials outside the fixture.
+globalWhiteRemoteAddresses: []
+accounts:
+  - accessKey: dbx-test-admin
+    secretKey: dbx-test-admin-secret
+    admin: true
+    defaultTopicPerm: PUB|SUB
+    defaultGroupPerm: SUB
+  - accessKey: dbx-test-limited
+    secretKey: dbx-test-limited-secret
+    admin: false
+    defaultTopicPerm: DENY
+    defaultGroupPerm: DENY

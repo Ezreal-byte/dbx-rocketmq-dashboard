@@ -1,0 +1,26 @@
+import client from './client';
+
+// Matches mock/clients.ts
+export interface ClientConnection {
+  clientId?: string | null;
+  type: string;
+  groupOrTopic: string;
+  protocol: string;
+  address?: string | null;
+  language: string;
+  version: string;
+  connectedAt?: string | null;
+  partial?: boolean;
+  clusterName: string;
+}
+
+export interface ClientConnectionQuery {
+  namesrvAddr: string;
+  clusterId?: string;
+  type?: string;
+}
+
+export async function listConnections(params?: ClientConnectionQuery) {
+  const res = await client.get<{ data: ClientConnection[] }>('/clients', { params });
+  return res.data.data;
+}

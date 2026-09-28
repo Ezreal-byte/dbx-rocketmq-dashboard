@@ -1,0 +1,15 @@
+node_modules/
+frontend/node_modules/
+ui/
+dist/
+.dbx-dev/
+*.exe
+.upstream-studio/
+.studio-upstream.zip
+web/dist/
+*.tsbuildinfo
+coverage/
+*.dbxp
+.env
+.env.local
+.env.*.local

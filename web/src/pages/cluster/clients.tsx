@@ -1,0 +1,1027 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  Alert,
+  Button,
+  Card,
+  Descriptions,
+  Flex,
+  Input,
+  Modal,
+  Progress,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+  theme,
+} from 'antd';
+import { DownloadSimple, Eye, MagnifyingGlass } from '@phosphor-icons/react';
+import type { ColumnsType } from 'antd/es/table';
+import type { TableProps } from 'antd';
+
+import PageHeader from '../../components/PageHeader';
+import { useLang } from '../../i18n/LangContext';
+import type { ClientConnection } from '../../api/connections';
+import { listConnections } from '../../services/connectionsService';
+import { listRegistryClusters } from '../../services/clusterService';
+import type { ClusterInfo } from '../../api/cluster';
+import { formatDateTime } from '../../utils/format';
+import { buildCsv, downloadCsv, type CsvColumn } from '../../utils/download';
+import { tableScrollX } from '../../utils/table';
+import {
+  analyzeClientConnections,
+  type ClientConnectionIssue,
+  type ClientResourceSummary,
+} from '../../utils/clientConnectionDiagnostics';
+import { matchesClientSearch } from './clientsSearch';
+
+const { Text } = Typography;
+const DEFAULT_LOAD_ERROR = '客户端连接加载失败，请稍后重试';
+
+/* ─── Helpers ─── */
+
+const typeConfig: Record<string, { color: string; label: string }> = {
+  Producer: { color: 'blue', label: 'Producer' },
+  Consumer: { color: 'green', label: 'Consumer' },
+};
+
+/**
+ * One clipped line inside a diagnostics-table cell. The project-wide
+ * `.ant-table-cell { white-space: nowrap }` keeps long values (trace-producer resource names,
+ * client ids, risk descriptions) from wrapping, so without an explicit ellipsis they spill over
+ * the neighbouring column; each line clips itself and carries its full text in a `title`.
+ */
+const diagnosticCellLine: CSSProperties = {
+  display: 'block',
+  maxWidth: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
+const protocolConfig: Record<string, { color: string; label: string }> = {
+  gRPC: { color: 'green', label: 'gRPC' },
+  Remoting: { color: 'blue', label: 'Remoting' },
+};
+
+const healthStatusColor: Record<ClientResourceSummary['status'], string> = {
+  healthy: 'green',
+  warning: 'gold',
+  critical: 'red',
+};
+
+const healthStatusTextKey: Record<ClientResourceSummary['status'], string> = {
+  healthy: 'clients.healthStatusHealthy',
+  warning: 'clients.healthStatusWarning',
+  critical: 'clients.healthStatusCritical',
+};
+
+const issueSeverityColor: Record<ClientConnectionIssue['severity'], string> = {
+  critical: 'red',
+  warning: 'gold',
+  info: 'blue',
+};
+
+const issueSeverityTextKey: Record<ClientConnectionIssue['severity'], string> = {
+  critical: 'clients.issueSeverityCritical',
+  warning: 'clients.issueSeverityWarning',
+  info: 'clients.issueSeverityInfo',
+};
+
+const languageConfig: Record<string, { color: string; label: string }> = {
+  Java: { color: 'default', label: 'Java' },
+  Go: { color: 'cyan', label: 'Go' },
+  Python: { color: 'purple', label: 'Python' },
+  Rust: { color: 'orange', label: 'Rust' },
+  Cpp: { color: 'geekblue', label: 'C++' },
+  CSharp: { color: 'magenta', label: 'C#' },
+  NodeJS: { color: 'lime', label: 'Node.js' },
+  PHP: { color: 'gold', label: 'PHP' },
+};
+
+const CLIENT_CONNECTION_EXPORT_COLUMNS: CsvColumn<ClientConnection>[] = [
+  { header: 'Cluster', value: (connection) => connection.clusterName },
+  { header: 'Client ID', value: (connection) => connection.clientId },
+  { header: 'Type', value: (connection) => connection.type },
+  { header: 'Group/Topic', value: (connection) => connection.groupOrTopic },
+  { header: 'Protocol', value: (connection) => connection.protocol },
+  { header: 'Address', value: (connection) => connection.address },
+  { header: 'Language', value: (connection) => connection.language },
+  { header: 'Version', value: (connection) => connection.version },
+  { header: 'Connected At', value: (connection) => connection.connectedAt },
+  { header: 'Partial', value: (connection) => (connection.partial ? 'true' : 'false') },
+];
+
+type ClientTableFilters = Parameters<NonNullable<TableProps<ClientConnection>['onChange']>>[1];
+
+const countBy = (values: string[]) =>
+  [
+    ...values.reduce(
+      (counts, value) => counts.set(value, (counts.get(value) ?? 0) + 1),
+      new Map<string, number>(),
+    ),
+  ]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+type ApiErrorLike = {
+  message?: unknown;
+  response?: {
+    data?: {
+      message?: unknown;
+    };
+  };
+};
+
+function getLoadErrorMessage(error: unknown): string {
+  const apiError = error as ApiErrorLike;
+  const responseMessage = apiError.response?.data?.message;
+  if (typeof responseMessage === 'string' && responseMessage.trim()) {
+    return responseMessage;
+  }
+  if (typeof apiError.message === 'string' && apiError.message.trim()) {
+    return apiError.message;
+  }
+  return DEFAULT_LOAD_ERROR;
+}
+
+const displayMetadata = (value: string | null | undefined) => value || '-';
+
+/* ═══════════════════════════════════════════
+   ClientsPage
+   ═══════════════════════════════════════════ */
+const ClientsPage = () => {
+  const { t } = useLang();
+  const { token } = theme.useToken();
+  const [connections, setConnections] = useState<ClientConnection[]>([]);
+  const [registryClusters, setRegistryClusters] = useState<ClusterInfo[]>([]);
+  const [selectedEndpoint, setSelectedEndpoint] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [clusterFilter, setClusterFilter] = useState<string>('ALL');
+  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [selectedConnection, setSelectedConnection] = useState<ClientConnection | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [registryLoadKey, setRegistryLoadKey] = useState(0);
+  const [connectionLoadKey, setConnectionLoadKey] = useState(0);
+  const [columnFilters, setColumnFilters] = useState<ClientTableFilters>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const registryRequestRef = useRef(0);
+  const connectionRequestRef = useRef(0);
+
+  const selectedCluster = registryClusters.find((cluster) => cluster.endpoint === selectedEndpoint);
+
+  const nameserverOptions = useMemo(
+    () =>
+      registryClusters.map((cluster) => ({
+        value: cluster.endpoint,
+        label: `${cluster.name} (${cluster.endpoint})`,
+      })),
+    [registryClusters],
+  );
+
+  const handleNameserverChange = (endpoint: string) => {
+    connectionRequestRef.current += 1;
+    setCurrentPage(1);
+    setSelectedEndpoint(endpoint);
+    setConnections([]);
+    setClusterFilter('ALL');
+    setSearch('');
+    setTypeFilter('ALL');
+    // Column filters describe the previous endpoint's rows; keeping them (or antd's
+    // uncontrolled internal filter state) would hide every row of the new endpoint.
+    setColumnFilters({});
+    setSelectedConnection(null);
+    setLoadError(null);
+    setLoading(true);
+  };
+
+  useEffect(() => {
+    const requestId = ++registryRequestRef.current;
+
+    void listRegistryClusters()
+      .then((nextClusters) => {
+        if (registryRequestRef.current !== requestId) return;
+        setRegistryClusters(nextClusters);
+        setSelectedEndpoint((current) => {
+          if (current && nextClusters.some((cluster) => cluster.endpoint === current)) {
+            return current;
+          }
+          return nextClusters[0]?.endpoint;
+        });
+        setLoadError(null);
+      })
+      .catch((error) => {
+        if (registryRequestRef.current !== requestId) return;
+        setRegistryClusters([]);
+        setSelectedEndpoint(undefined);
+        setConnections([]);
+        setLoadError(getLoadErrorMessage(error));
+      })
+      .finally(() => {
+        if (registryRequestRef.current === requestId) setLoading(false);
+      });
+  }, [registryLoadKey]);
+
+  useEffect(() => {
+    const requestId = ++connectionRequestRef.current;
+    if (!selectedEndpoint || !selectedCluster) {
+      return;
+    }
+    void Promise.resolve().then(() => {
+      if (connectionRequestRef.current === requestId) setLoading(true);
+    });
+
+    void listConnections({
+      namesrvAddr: selectedEndpoint,
+      clusterId: clusterFilter === 'ALL' ? undefined : clusterFilter,
+      type: typeFilter === 'ALL' ? undefined : typeFilter,
+    })
+      .then((nextConnections) => {
+        if (connectionRequestRef.current === requestId) {
+          setConnections(nextConnections);
+          setLoadError(null);
+        }
+      })
+      .catch((error) => {
+        if (connectionRequestRef.current === requestId) {
+          setConnections([]);
+          setClusterFilter('ALL');
+          setSelectedConnection(null);
+          setLoadError(getLoadErrorMessage(error));
+        }
+      })
+      .finally(() => {
+        if (connectionRequestRef.current === requestId) setLoading(false);
+      });
+  }, [connectionLoadKey, clusterFilter, selectedEndpoint, selectedCluster, typeFilter]);
+
+  useEffect(
+    () => () => {
+      registryRequestRef.current += 1;
+      connectionRequestRef.current += 1;
+    },
+    [],
+  );
+
+  /* ─── Cluster options using nsClusterName ─── */
+  const clusterOptions = useMemo(() => {
+    const clusterNames = [
+      ...new Set([
+        ...registryClusters.map((cluster) => cluster.nsClusterName).filter(Boolean),
+        ...connections.map((connection) => connection.clusterName).filter(Boolean),
+      ]),
+    ].sort();
+    return [
+      { value: 'ALL', label: t('clients.allClusters') },
+      ...clusterNames.map((name) => ({ value: name, label: name })),
+    ];
+  }, [connections, registryClusters, t]);
+
+  const clusterConnections = useMemo(() => connections, [connections]);
+
+  const connectionStats = useMemo(() => {
+    const instances = Array.from(
+      new Map(
+        clusterConnections.map((connection) => [
+          `${connection.type}:${connection.clientId ?? connection.address ?? connection.groupOrTopic}`,
+          connection,
+        ]),
+      ).values(),
+    );
+    return {
+      total: instances.length,
+      producers: instances.filter((connection) => connection.type === 'Producer').length,
+      consumers: instances.filter((connection) => connection.type === 'Consumer').length,
+      protocols: countBy(instances.map((connection) => connection.protocol)),
+      languageVersions: countBy(
+        instances.map((connection) => `${connection.language} ${connection.version}`),
+      ),
+    };
+  }, [clusterConnections]);
+
+  const clientDiagnostics = useMemo(
+    () => analyzeClientConnections(clusterConnections),
+    [clusterConnections],
+  );
+
+  const diagnosticProgressStatus =
+    clientDiagnostics.status === 'critical'
+      ? 'exception'
+      : clientDiagnostics.status === 'healthy'
+        ? 'success'
+        : 'normal';
+
+  const diagnosticStrokeColor =
+    clientDiagnostics.status === 'critical'
+      ? '#ff4d4f'
+      : clientDiagnostics.status === 'warning'
+        ? '#faad14'
+        : '#52c41a';
+
+  const diagnosticSummaryItems = [
+    {
+      key: 'resources',
+      title: t('clients.diagnosticResources'),
+      value: clientDiagnostics.summary.resourceCount,
+    },
+    {
+      key: 'mixedProtocol',
+      title: t('clients.diagnosticMixedProtocols'),
+      value: clientDiagnostics.summary.mixedProtocolResourceCount,
+    },
+    {
+      key: 'mixedVersion',
+      title: t('clients.diagnosticVersionSkews'),
+      value: clientDiagnostics.summary.mixedVersionResourceCount,
+    },
+    {
+      key: 'singleConsumer',
+      title: t('clients.diagnosticSingleConsumers'),
+      value: clientDiagnostics.summary.singleConsumerGroupCount,
+    },
+  ];
+
+  /* ─── Filtered data (search + cluster only, table handles column filters) ─── */
+  const filtered = useMemo(
+    () => clusterConnections.filter((connection) => matchesClientSearch(connection, search)),
+    [clusterConnections, search],
+  );
+
+  const exportConnections = useMemo(() => {
+    const matches = (key: string, value: string) => {
+      const selected = columnFilters[key];
+      return !selected?.length || selected.some((filterValue) => String(filterValue) === value);
+    };
+    return filtered.filter(
+      (connection) =>
+        matches('clusterName', connection.clusterName) &&
+        matches('type', connection.type) &&
+        matches('protocol', connection.protocol) &&
+        matches('language', connection.language),
+    );
+  }, [columnFilters, filtered]);
+
+  const lastPage = Math.max(1, Math.ceil(exportConnections.length / pageSize));
+  const clampedCurrentPage = Math.min(currentPage, lastPage);
+
+  const handleExport = () => {
+    const filename = `rocketmq-client-connections-${new Date().toISOString().slice(0, 10)}.csv`;
+    const csv = buildCsv(CLIENT_CONNECTION_EXPORT_COLUMNS, exportConnections);
+    downloadCsv(filename, csv);
+  };
+
+  /* ═══════════════════════════════════════════
+     Table Columns (with built-in filters)
+     ═══════════════════════════════════════════ */
+  const columns: ColumnsType<ClientConnection> = [
+    {
+      title: t('clients.cluster'),
+      dataIndex: 'clusterName',
+      key: 'clusterName',
+      width: 130,
+      filters: clusterOptions
+        .filter((option) => option.value !== 'ALL')
+        .map((option) => ({ text: option.label, value: option.value })),
+      filteredValue: columnFilters.clusterName ?? null,
+      onFilter: (value, record) => record.clusterName === value,
+      render: (name: string) => <Text style={{ fontSize: 14 }}>{name}</Text>,
+    },
+    {
+      title: t('clients.clientId'),
+      dataIndex: 'clientId',
+      key: 'clientId',
+      // 唯一可伸展列：容器比表宽时余量集中在此，其余列保持声明宽度
+      minWidth: 260,
+      ellipsis: true,
+      render: (id?: string | null) => (
+        <Text
+          copyable={Boolean(id)}
+          style={{
+            fontSize: 14,
+            fontFamily: 'monospace',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {displayMetadata(id)}
+        </Text>
+      ),
+    },
+    {
+      title: t('common.type'),
+      dataIndex: 'type',
+      key: 'type',
+      width: 100,
+      filters: [
+        { text: 'Producer', value: 'Producer' },
+        { text: 'Consumer', value: 'Consumer' },
+      ],
+      filteredValue: columnFilters.type ?? null,
+      onFilter: (value, record) => record.type === value,
+      render: (type: string) => {
+        const cfg = typeConfig[type] ?? { label: type };
+        return <Text style={{ fontSize: 14 }}>{cfg.label}</Text>;
+      },
+    },
+    {
+      title: t('clients.groupOrTopic'),
+      dataIndex: 'groupOrTopic',
+      key: 'groupOrTopic',
+      width: 180,
+      ellipsis: true,
+      render: (name: string) => (
+        <Text strong style={{ fontSize: 14 }}>
+          {name}
+        </Text>
+      ),
+    },
+    {
+      title: t('clients.protocol'),
+      dataIndex: 'protocol',
+      key: 'protocol',
+      width: 110,
+      filters: [
+        { text: 'gRPC', value: 'gRPC' },
+        { text: 'Remoting', value: 'Remoting' },
+      ],
+      filteredValue: columnFilters.protocol ?? null,
+      onFilter: (value, record) => record.protocol === value,
+      render: (protocol: string) => {
+        const cfg = protocolConfig[protocol] ?? { color: 'default', label: protocol };
+        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      },
+    },
+    {
+      title: t('common.address'),
+      dataIndex: 'address',
+      key: 'address',
+      width: 180,
+      render: (addr?: string | null) => (
+        <Text style={{ fontSize: 14, fontFamily: 'monospace' }}>{displayMetadata(addr)}</Text>
+      ),
+    },
+    {
+      title: t('clients.language'),
+      dataIndex: 'language',
+      key: 'language',
+      width: 100,
+      filters: Object.entries(languageConfig).map(([value, config]) => ({
+        text: config.label,
+        value,
+      })),
+      filteredValue: columnFilters.language ?? null,
+      onFilter: (value, record) => record.language === value,
+      render: (lang: string) => {
+        const cfg = languageConfig[lang] ?? { color: 'default', label: lang };
+        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      },
+    },
+    {
+      title: t('common.version'),
+      dataIndex: 'version',
+      key: 'version',
+      width: 90,
+    },
+    {
+      title: t('cluster.heartbeat'),
+      dataIndex: 'connectedAt',
+      key: 'connectedAt',
+      width: 170,
+      sorter: (a, b) => (a.connectedAt ?? '').localeCompare(b.connectedAt ?? ''),
+      render: (d?: string | null) => (
+        <Text type="secondary" style={{ fontSize: 14 }}>
+          {d ? formatDateTime(d) : '-'}
+        </Text>
+      ),
+    },
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: 90,
+      fixed: 'right',
+      render: (_: unknown, record: ClientConnection) => (
+        <Button
+          size="small"
+          icon={<Eye size={14} />}
+          style={{ borderColor: '#1677ff', color: '#1677ff' }}
+          onClick={() => setSelectedConnection(record)}
+        >
+          {t('common.detail')}
+        </Button>
+      ),
+    },
+  ];
+
+  const resourceColumns: ColumnsType<ClientResourceSummary> = [
+    {
+      title: t('common.status'),
+      dataIndex: 'status',
+      key: 'status',
+      width: 90,
+      render: (status: ClientResourceSummary['status']) => (
+        <Tag color={healthStatusColor[status]}>{t(healthStatusTextKey[status])}</Tag>
+      ),
+    },
+    {
+      title: t('clients.groupOrTopic'),
+      key: 'resource',
+      width: 220,
+      // Unbounded resource names (_INNER_TRACE_PRODUCER-…-CONSUME-1) must clip inside the
+      // cell: the project-wide `.ant-table-cell { white-space: nowrap }` otherwise lets them
+      // spill over the neighbouring column. Each line ellipsises on its own with a native
+      // title tooltip, the ConversationListModal title-column idiom.
+      ellipsis: { showTitle: false },
+      render: (_: unknown, record) => (
+        <div style={{ minWidth: 0 }}>
+          <Text strong style={diagnosticCellLine} title={record.resource}>
+            {record.resource}
+          </Text>
+          <Text type="secondary" style={diagnosticCellLine}>
+            {record.type}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: t('clients.diagnosticClients'),
+      key: 'clients',
+      width: 170,
+      render: (_: unknown, record) => (
+        <Space size={4} wrap>
+          <Tag>
+            {record.uniqueClientCount} {t('clients.diagnosticClientUnit')}
+          </Tag>
+          <Tag>
+            {record.uniqueAddressCount} {t('clients.diagnosticAddressUnit')}
+          </Tag>
+        </Space>
+      ),
+    },
+    {
+      title: t('clients.protocol'),
+      dataIndex: 'protocols',
+      key: 'protocols',
+      width: 160,
+      render: (protocols: string[]) => (
+        <Space size={4} wrap>
+          {protocols.map((protocol) => (
+            <Tag key={protocol} color={protocolConfig[protocol]?.color ?? 'default'}>
+              {protocol}
+            </Tag>
+          ))}
+        </Space>
+      ),
+    },
+    {
+      title: `${t('clients.language')} / ${t('common.version')}`,
+      key: 'versions',
+      width: 220,
+      render: (_: unknown, record) => (
+        <Space size={4} wrap>
+          {record.languages.map((language) => (
+            <Tag key={language} color={languageConfig[language]?.color ?? 'default'}>
+              {languageConfig[language]?.label ?? language}
+            </Tag>
+          ))}
+          {record.versions.map((version) => (
+            <Text key={version} code>
+              {version}
+            </Text>
+          ))}
+        </Space>
+      ),
+    },
+    {
+      title: t('clients.diagnosticIssues'),
+      dataIndex: 'issueCount',
+      key: 'issueCount',
+      width: 90,
+      render: (count: number) => <Tag color={count > 0 ? 'gold' : 'green'}>{count}</Tag>,
+    },
+  ];
+
+  const issueColumns: ColumnsType<ClientConnectionIssue> = [
+    {
+      title: t('clients.diagnosticSeverity'),
+      dataIndex: 'severity',
+      key: 'severity',
+      width: 90,
+      render: (severity: ClientConnectionIssue['severity']) => (
+        <Tag color={issueSeverityColor[severity]}>{t(issueSeverityTextKey[severity])}</Tag>
+      ),
+    },
+    {
+      title: t('clients.diagnosticIssue'),
+      key: 'issue',
+      width: 260,
+      // The description is a full sentence; clipped to one line with the full text on hover,
+      // never wrapped (project table rule) and never spilling into the Client ID column.
+      ellipsis: { showTitle: false },
+      render: (_: unknown, record) => (
+        <div style={{ minWidth: 0 }}>
+          <Text strong style={diagnosticCellLine} title={record.title}>
+            {record.title}
+          </Text>
+          <Text type="secondary" style={diagnosticCellLine} title={record.description}>
+            {record.description}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: t('clients.clientId'),
+      dataIndex: 'clientId',
+      key: 'clientId',
+      width: 180,
+      ellipsis: { showTitle: false },
+      render: (clientId?: string) =>
+        clientId ? (
+          <Text style={{ ...diagnosticCellLine, fontFamily: 'monospace' }} title={clientId}>
+            {clientId}
+          </Text>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
+    },
+    {
+      title: t('clients.groupOrTopic'),
+      dataIndex: 'resource',
+      key: 'resource',
+      width: 160,
+      ellipsis: true,
+      render: (resource?: string) => resource || '-',
+    },
+    {
+      title: t('clients.diagnosticEvidence'),
+      dataIndex: 'evidence',
+      key: 'evidence',
+      width: 220,
+      render: (evidence: string[]) => (
+        <Space size={4} wrap>
+          {evidence.length === 0 ? (
+            <Text type="secondary">-</Text>
+          ) : (
+            evidence.map((item) => (
+              <Text key={item} code>
+                {item}
+              </Text>
+            ))
+          )}
+        </Space>
+      ),
+    },
+  ];
+
+  /* ═══════════════════════════════════════════
+     Render
+     ═══════════════════════════════════════════ */
+  return (
+    <div style={{ padding: 24 }}>
+      {/* ─── Header ─── */}
+      <PageHeader
+        title={t('clients.title')}
+        subtitle={`${t('clients.title')} — ${filtered.length} connections`}
+      />
+
+      {loadError && (
+        <Alert
+          showIcon
+          type="warning"
+          message={loadError}
+          style={{ marginBottom: 16 }}
+          action={
+            <Button
+              size="small"
+              onClick={() => {
+                setLoading(true);
+                setLoadError(null);
+                setRegistryLoadKey((key) => key + 1);
+                setConnectionLoadKey((key) => key + 1);
+              }}
+            >
+              重试
+            </Button>
+          }
+        />
+      )}
+      {connections.some((connection) => connection.partial) && (
+        <Alert
+          showIcon
+          type="warning"
+          message="Producer connections are sampled because the topic scan limit was reached."
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {/* ─── Filter Bar ─── */}
+      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
+        <Space size={12} wrap>
+          <Select
+            aria-label="NameServer"
+            value={selectedEndpoint}
+            onChange={handleNameserverChange}
+            placeholder={t('clients.selectNameserverPlaceholder')}
+            style={{ width: 240 }}
+            options={nameserverOptions}
+          />
+          <Select
+            aria-label={t('clients.cluster')}
+            value={clusterFilter}
+            onChange={(value) => {
+              setClusterFilter(value);
+              setCurrentPage(1);
+            }}
+            style={{ width: 180 }}
+            options={clusterOptions}
+          />
+          <Select
+            aria-label={t('common.type')}
+            value={typeFilter}
+            onChange={(value) => {
+              setTypeFilter(value);
+              setCurrentPage(1);
+            }}
+            style={{ width: 140 }}
+            options={[
+              { value: 'ALL', label: t('common.all') },
+              { value: 'Producer', label: typeConfig.Producer?.label ?? 'Producer' },
+              { value: 'Consumer', label: typeConfig.Consumer?.label ?? 'Consumer' },
+            ]}
+          />
+          <Input.Search
+            placeholder={t('clients.searchPlaceholder')}
+            allowClear
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            onSearch={(value) => {
+              setSearch(value);
+              setCurrentPage(1);
+            }}
+            style={{ width: 280 }}
+            prefix={<MagnifyingGlass size={14} color="#9CA3AF" />}
+          />
+        </Space>
+        <Button
+          icon={<DownloadSimple size={16} />}
+          disabled={exportConnections.length === 0}
+          onClick={handleExport}
+        >
+          {t('common.export')}
+        </Button>
+      </Flex>
+
+      <Flex
+        data-testid="connection-statistics"
+        gap={32}
+        align="flex-start"
+        wrap
+        style={{
+          marginBottom: 16,
+          padding: '12px 16px',
+          background: token.colorBgContainer,
+          border: `1px solid ${token.colorBorderSecondary}`,
+          borderRadius: token.borderRadiusLG,
+        }}
+      >
+        <div data-testid="connection-total">
+          <Statistic title={t('clients.title')} value={connectionStats.total} />
+        </div>
+        <div data-testid="producer-total">
+          <Statistic title="Producer" value={connectionStats.producers} />
+        </div>
+        <div data-testid="consumer-total">
+          <Statistic title="Consumer" value={connectionStats.consumers} />
+        </div>
+        <div data-testid="protocol-distribution" style={{ minWidth: 180 }}>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+            {t('clients.protocol')}
+          </Text>
+          <Flex gap={4} wrap>
+            {connectionStats.protocols.length > 0 ? (
+              connectionStats.protocols.map(({ label, count }) => (
+                <Tag key={label} color={protocolConfig[label]?.color ?? 'default'}>
+                  {label}: {count}
+                </Tag>
+              ))
+            ) : (
+              <Text type="secondary">{t('common.noData')}</Text>
+            )}
+          </Flex>
+        </div>
+        <div data-testid="language-version-distribution" style={{ minWidth: 220 }}>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+            {t('clients.language')} / {t('common.version')}
+          </Text>
+          <Flex gap={4} wrap style={{ maxHeight: 76, overflowY: 'auto' }}>
+            {connectionStats.languageVersions.length > 0 ? (
+              connectionStats.languageVersions.map(({ label, count }) => {
+                const [language, ...versionParts] = label.split(' ');
+                const version = versionParts.join(' ');
+                const config = languageConfig[language] ?? { color: 'default', label: language };
+                return (
+                  <Tag key={label} color={config.color}>
+                    {config.label} {version}: {count}
+                  </Tag>
+                );
+              })
+            ) : (
+              <Text type="secondary">{t('common.noData')}</Text>
+            )}
+          </Flex>
+        </div>
+      </Flex>
+
+      <div
+        data-testid="client-connection-diagnostics"
+        style={{
+          marginBottom: 16,
+          padding: '16px',
+          background: token.colorBgContainer,
+          border: `1px solid ${token.colorBorderSecondary}`,
+          borderRadius: token.borderRadiusLG,
+        }}
+      >
+        <Flex gap={20} align="center" wrap="wrap" style={{ marginBottom: 16 }}>
+          <Progress
+            type="circle"
+            percent={clientDiagnostics.score}
+            size={92}
+            status={diagnosticProgressStatus}
+            strokeColor={diagnosticStrokeColor}
+            format={(percent) => `${percent}`}
+          />
+          <div style={{ minWidth: 220, flex: '1 1 260px' }}>
+            <Typography.Title level={5} style={{ margin: 0 }}>
+              {t('clients.diagnostics')}
+            </Typography.Title>
+            <Text type="secondary">{clientDiagnostics.statusText}</Text>
+            <div style={{ marginTop: 8 }}>
+              <Tag color={clientDiagnostics.statusColor}>
+                {t('clients.diagnosticIssues')}: {clientDiagnostics.issues.length}
+              </Tag>
+              <Tag>
+                {t('clients.diagnosticUniqueClients')}:{' '}
+                {clientDiagnostics.summary.uniqueClientCount}
+              </Tag>
+              <Tag>
+                {t('clients.diagnosticUniqueAddresses')}:{' '}
+                {clientDiagnostics.summary.uniqueAddressCount}
+              </Tag>
+            </div>
+          </div>
+          <Flex gap={16} wrap="wrap" style={{ flex: '2 1 440px' }}>
+            {diagnosticSummaryItems.map((item) => (
+              <div key={item.key} style={{ minWidth: 126 }}>
+                <Statistic title={item.title} value={item.value} valueStyle={{ fontSize: 22 }} />
+              </div>
+            ))}
+          </Flex>
+        </Flex>
+
+        <Table<ClientResourceSummary>
+          columns={resourceColumns}
+          dataSource={clientDiagnostics.resources}
+          rowKey="id"
+          pagination={false}
+          size="small"
+          tableLayout="fixed"
+          scroll={{ x: tableScrollX(resourceColumns) }}
+          locale={{ emptyText: t('common.noData') }}
+          style={{ marginBottom: 12 }}
+        />
+
+        {clientDiagnostics.issues.length > 0 ? (
+          <Table<ClientConnectionIssue>
+            columns={issueColumns}
+            dataSource={clientDiagnostics.issues}
+            rowKey="id"
+            pagination={false}
+            size="small"
+            tableLayout="fixed"
+            scroll={{ x: tableScrollX(issueColumns) }}
+            style={{ marginBottom: 12 }}
+          />
+        ) : (
+          <Alert type="success" showIcon message={t('clients.diagnosticHealthyMessage')} />
+        )}
+
+        <div style={{ marginTop: 12 }}>
+          <Text strong>{t('clients.diagnosticRecommendations')}</Text>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+            {clientDiagnostics.recommendations.map((item) => (
+              <li key={item}>
+                <Text>{item}</Text>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* ─── Table ─── */}
+      <Card styles={{ body: { padding: 0 } }}>
+        <Table
+          columns={columns}
+          dataSource={filtered}
+          rowKey={(connection) =>
+            `${connection.type}:${connection.clientId ?? ''}:${connection.address ?? ''}:${connection.groupOrTopic}`
+          }
+          loading={loading}
+          onChange={(pagination, filters, _sorter, extra) => {
+            setColumnFilters(filters);
+            if (extra.action === 'filter') {
+              setCurrentPage(1);
+              return;
+            }
+            setCurrentPage(pagination.current ?? 1);
+            setPageSize(pagination.pageSize ?? 20);
+          }}
+          tableLayout="fixed"
+          scroll={{ x: tableScrollX(columns) }}
+          pagination={{
+            current: clampedCurrentPage,
+            pageSize,
+            showSizeChanger: true,
+            showTotal: (total) => `${t('common.total')} ${total}`,
+          }}
+          size="small"
+        />
+      </Card>
+
+      <Modal
+        title={t('clients.detailTitle', { id: displayMetadata(selectedConnection?.clientId) })}
+        open={Boolean(selectedConnection)}
+        onCancel={() => setSelectedConnection(null)}
+        footer={<Button onClick={() => setSelectedConnection(null)}>{t('common.close')}</Button>}
+        width={640}
+        destroyOnHidden
+      >
+        {selectedConnection && (
+          <Descriptions column={1} bordered size="small">
+            <Descriptions.Item label={t('clients.clientId')}>
+              <Text
+                copyable={Boolean(selectedConnection.clientId)}
+                style={{ fontFamily: 'monospace' }}
+              >
+                {displayMetadata(selectedConnection.clientId)}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label={t('clients.cluster')}>
+              <Tag color="blue">{selectedConnection.clusterName}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label={t('common.type')}>
+              {typeConfig[selectedConnection.type]?.label ?? selectedConnection.type}
+            </Descriptions.Item>
+            <Descriptions.Item label={t('clients.groupOrTopic')}>
+              {selectedConnection.groupOrTopic}
+            </Descriptions.Item>
+            <Descriptions.Item label={t('clients.protocol')}>
+              <Tag color={protocolConfig[selectedConnection.protocol]?.color ?? 'default'}>
+                {protocolConfig[selectedConnection.protocol]?.label ?? selectedConnection.protocol}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label={t('common.address')}>
+              <Text style={{ fontFamily: 'monospace' }}>
+                {displayMetadata(selectedConnection.address)}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label={t('clients.language')}>
+              <Tag color={languageConfig[selectedConnection.language]?.color ?? 'default'}>
+                {languageConfig[selectedConnection.language]?.label ?? selectedConnection.language}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label={t('common.version')}>
+              {selectedConnection.version}
+            </Descriptions.Item>
+            <Descriptions.Item label={t('cluster.heartbeat')}>
+              {selectedConnection.connectedAt ?? '-'}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+    </div>
+  );
+};
+
+export default ClientsPage;

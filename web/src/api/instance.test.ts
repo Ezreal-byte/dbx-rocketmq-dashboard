@@ -1,0 +1,138 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import MockAdapter from 'axios-mock-adapter';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import client from './client';
+import {
+  createInstance,
+  deleteInstance,
+  getInstanceCapabilities,
+  importCloudInstances,
+  listInstances,
+  supportsApacheRuntime,
+  updateInstance,
+} from './instance';
+
+const mock = new MockAdapter(client);
+const instance = {
+  id: 1,
+  name: 'orders',
+  type: 'PROXY_CLUSTER' as const,
+  endpoint: 'proxy:8080',
+  remark: '',
+  topicCount: 0,
+  consumerGroupCount: 0,
+  gmtCreate: '2026-07-18T00:00:00Z',
+  gmtModified: '2026-07-18T00:00:00Z',
+};
+
+describe('instance API', () => {
+  beforeEach(() => {
+    mock.reset();
+    vi.stubGlobal('localStorage', { getItem: vi.fn().mockReturnValue(null) });
+  });
+
+  afterEach(() => {
+    mock.reset();
+    vi.unstubAllGlobals();
+  });
+
+  it('loads and returns persisted instance records', async () => {
+    mock.onGet('/instances').reply(200, { code: 200, data: [instance] });
+    mock.onPost('/instances/create').reply(200, { code: 200, data: instance });
+    mock.onPost('/instances/update').reply(200, { code: 200, data: instance });
+
+    await expect(listInstances()).resolves.toEqual([instance]);
+    await expect(
+      createInstance({ name: instance.name, type: instance.type, endpoint: instance.endpoint }),
+    ).resolves.toEqual(instance);
+    await expect(updateInstance({ instanceId: instance.name, remark: 'updated' })).resolves.toEqual(
+      instance,
+    );
+  });
+
+  it('sends normalized instance filters', async () => {
+    mock.onGet('/instances').reply((config) => {
+      expect(config.params).toEqual({ type: 'CLOUD', search: 'proxy:8080' });
+      return [200, { code: 200, data: [instance] }];
+    });
+
+    await expect(listInstances({ type: 'CLOUD', search: '  proxy:8080  ' })).resolves.toEqual([
+      instance,
+    ]);
+  });
+
+  it('omits blank instance filters', async () => {
+    mock.onGet('/instances').reply((config) => {
+      expect(config.params).toEqual({});
+      return [200, { code: 200, data: [instance] }];
+    });
+
+    await expect(listInstances({ search: '   ' })).resolves.toEqual([instance]);
+  });
+
+  it('sends the instance ID when deleting', async () => {
+    mock.onPost('/instances/delete').reply((config) => {
+      expect(JSON.parse(config.data)).toEqual({ id: instance.name });
+      return [200, { code: 200, data: null }];
+    });
+
+    await expect(deleteInstance(instance.name)).resolves.toBeUndefined();
+  });
+
+  it('loads the capability contract for an encoded instance id', async () => {
+    const capabilities = {
+      instanceId: 'instance/proxy',
+      vendor: 'APACHE' as const,
+      accessType: 'PROXY_CLUSTER' as const,
+      capabilities: ['TOPIC_MANAGEMENT', 'DLQ_MANAGEMENT'] as const,
+    };
+    mock.onGet('/instances/instance%2Fproxy/capabilities').reply(200, {
+      code: 200,
+      data: capabilities,
+    });
+
+    await expect(getInstanceCapabilities('instance/proxy')).resolves.toEqual(capabilities);
+  });
+
+  it('posts cloud import requests for cloud vendors', async () => {
+    const result = {
+      discovered: 4,
+      imported: 1,
+      skipped: 3,
+      failed: [],
+      failedCount: 0,
+      failureDetailsTruncated: false,
+    };
+    mock.onPost('/instances/import-cloud').reply((config) => {
+      expect(JSON.parse(config.data)).toEqual({ vendor: 'TENCENT', credentialId: 201 });
+      return [200, { code: 200, data: result }];
+    });
+
+    await expect(importCloudInstances({ vendor: 'TENCENT', credentialId: 201 })).resolves.toEqual(
+      result,
+    );
+  });
+
+  it('identifies instances supported by Apache MQAdmin runtime APIs', () => {
+    expect(supportsApacheRuntime({ vendor: 'APACHE' })).toBe(true);
+    expect(supportsApacheRuntime({})).toBe(true);
+    expect(supportsApacheRuntime({ vendor: 'ALIYUN' })).toBe(false);
+    expect(supportsApacheRuntime({ vendor: 'TENCENT' })).toBe(false);
+  });
+});

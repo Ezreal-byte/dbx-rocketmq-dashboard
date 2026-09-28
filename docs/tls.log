@@ -1,0 +1,5 @@
+=== RUN   TestDashboardTLSIntegration
+    dashboard_network_test.go:181: PASS /cluster/list.query
+--- PASS: TestDashboardTLSIntegration (7.61s)
+PASS
+ok  	dbx-rocketmq-console	15.895s

@@ -1,0 +1,307 @@
+[
+  {
+    "file": ".gitignore",
+    "upstream": "fc13a1af062a7660374f5816d5317ceac9a205958298b51003d85027da4e82ee",
+    "local": "fc13a1af062a7660374f5816d5317ceac9a205958298b51003d85027da4e82ee"
+  },
+  {
+    "file": "README.md",
+    "upstream": "14c50cb106fc5df61afe30d93b4e2d05ec3b66dc76fe661a0ca1cbce880df57c",
+    "local": "14c50cb106fc5df61afe30d93b4e2d05ec3b66dc76fe661a0ca1cbce880df57c"
+  },
+  {
+    "file": "package-lock.json",
+    "upstream": "d2bc457e11e520e2462a35c65de79cf28e57be140bdab583514aa0d5a100cd5d",
+    "local": "05f1520d6cc81011364512ca7eb85b47972de689043e2d9dc108b57a664fc920"
+  },
+  {
+    "file": "package.json",
+    "upstream": "8a2930540e5b1b7dfce7c3c8e564a05b1880cc34f687d4c9d63d56792cd4c84f",
+    "local": "f4bdcefc2e195254a813cbdcbcdef66c0266121d2e3c35ab686516cb0e6f2b6b"
+  },
+  {
+    "file": "public/favicon.ico",
+    "upstream": "d63f0eb7d1aef61b3d324146695c6541f4501e0abfb54d52f5e9d8222433f2da",
+    "local": "d63f0eb7d1aef61b3d324146695c6541f4501e0abfb54d52f5e9d8222433f2da"
+  },
+  {
+    "file": "public/index.html",
+    "upstream": "7dec9fc43cabb0cee1ffc4d5ed4be99006dd6a3afa9b8996aa7978c9a9842231",
+    "local": "7dec9fc43cabb0cee1ffc4d5ed4be99006dd6a3afa9b8996aa7978c9a9842231"
+  },
+  {
+    "file": "public/manifest.json",
+    "upstream": "33fdb99cc2cd3ad8e1815b18b7005eb3f58048990d80ee7c73aed28ab69a4e19",
+    "local": "33fdb99cc2cd3ad8e1815b18b7005eb3f58048990d80ee7c73aed28ab69a4e19"
+  },
+  {
+    "file": "public/robots.txt",
+    "upstream": "e5ab0d231eeb01b4a982d1c79a6729cac9797ad15a69247e4f28ba6afc149b4c",
+    "local": "e5ab0d231eeb01b4a982d1c79a6729cac9797ad15a69247e4f28ba6afc149b4c"
+  },
+  {
+    "file": "src/App.css",
+    "upstream": "2274903afa2fe20eb574f20ae40986d16043601f4a0b35d8b5d3541a7f67d5c7",
+    "local": "2274903afa2fe20eb574f20ae40986d16043601f4a0b35d8b5d3541a7f67d5c7"
+  },
+  {
+    "file": "src/App.jsx",
+    "upstream": "58c9bb18080d763278ec95bc6b3bf45faf27d8c2bf438bdad6d03e67aca474bd",
+    "local": "58c9bb18080d763278ec95bc6b3bf45faf27d8c2bf438bdad6d03e67aca474bd"
+  },
+  {
+    "file": "src/App.test.js",
+    "upstream": "7be7dac6a0fc58d9a97eb0186055ca7b992048070d93b3721607cd3e9379d32c",
+    "local": "7be7dac6a0fc58d9a97eb0186055ca7b992048070d93b3721607cd3e9379d32c"
+  },
+  {
+    "file": "src/api/remoteApi/remoteApi.js",
+    "upstream": "e40d0330dbaab88972c55d69a4e8628525a62b2d354390e360233d7e95c94c97",
+    "local": "cb2545650fe9d1334a5e46c0fa49a3c58f0bf3311d89c9d7738b0231f70c0ebf"
+  },
+  {
+    "file": "src/assets/styles/theme.js",
+    "upstream": "3a061fdb278524e92c750357fcbd2da409d36fc79823f40bf3e709a68f22f629",
+    "local": "3a061fdb278524e92c750357fcbd2da409d36fc79823f40bf3e709a68f22f629"
+  },
+  {
+    "file": "src/components/DlqMessageDetailViewDialog.jsx",
+    "upstream": "fa49c5890cf28e2342ff108c0181eed0e03f835316dcdaa4fbaa13b72177e259",
+    "local": "fa49c5890cf28e2342ff108c0181eed0e03f835316dcdaa4fbaa13b72177e259"
+  },
+  {
+    "file": "src/components/MessageDetailViewDialog.jsx",
+    "upstream": "2f7c9a088e8b2fffd86bb685323fa2d657ef6e9426ca4d14d7f5a48c62955f4b",
+    "local": "2f7c9a088e8b2fffd86bb685323fa2d657ef6e9426ca4d14d7f5a48c62955f4b"
+  },
+  {
+    "file": "src/components/MessageTraceDetailViewDialog.jsx",
+    "upstream": "d78e99226cb04ad08e2a5974add42ff3becdaea1f2d6c256e0988294c40f4537",
+    "local": "d45aeae362c72d073421b4c5182d9af13b8f25ab641205990298e1244324930b"
+  },
+  {
+    "file": "src/components/Navbar.jsx",
+    "upstream": "30f9ba27dd0f154a57ad475d4111a7b68be862a4f0e6f2849b2670ab89d043b1",
+    "local": "b6dfdd36a56f286c782f20bc4a9a2562307aad5c08f41a6ba14761eb1efe0968"
+  },
+  {
+    "file": "src/components/acl/ResourceInput.jsx",
+    "upstream": "1f48cdfd91e0f09d06b3cfa543857ba8a7ce3f84bf4fedc4723c0deab5bc34b0",
+    "local": "1f48cdfd91e0f09d06b3cfa543857ba8a7ce3f84bf4fedc4723c0deab5bc34b0"
+  },
+  {
+    "file": "src/components/acl/SubjectInput.jsx",
+    "upstream": "24e54a8949f86027330ed7f76fde6dd0a1c8bdea7fc8a68e2ceb22ca54829df7",
+    "local": "24e54a8949f86027330ed7f76fde6dd0a1c8bdea7fc8a68e2ceb22ca54829df7"
+  },
+  {
+    "file": "src/components/consumer/ClientInfoModal.jsx",
+    "upstream": "5f50e6a7021ce9b4ebc75be4c6eb422a7aa3f0abf6e2a864e5bc6c93dc740d80",
+    "local": "5f50e6a7021ce9b4ebc75be4c6eb422a7aa3f0abf6e2a864e5bc6c93dc740d80"
+  },
+  {
+    "file": "src/components/consumer/ConsumerConfigItem.jsx",
+    "upstream": "dc41fcd982949f35690857943bebe3fab7364a078ac96aa2f0fc82db80a17786",
+    "local": "dc41fcd982949f35690857943bebe3fab7364a078ac96aa2f0fc82db80a17786"
+  },
+  {
+    "file": "src/components/consumer/ConsumerConfigModal.jsx",
+    "upstream": "0b48f6c47b826e4912983a9d1ca730c2726e486f304fa0017a256eda5a825ee9",
+    "local": "0b48f6c47b826e4912983a9d1ca730c2726e486f304fa0017a256eda5a825ee9"
+  },
+  {
+    "file": "src/components/consumer/ConsumerDetailModal.jsx",
+    "upstream": "7364d0c41ab855be82c52aed87282972d84e9a2d323e7ccc448f843d4d1cd44c",
+    "local": "7364d0c41ab855be82c52aed87282972d84e9a2d323e7ccc448f843d4d1cd44c"
+  },
+  {
+    "file": "src/components/consumer/DeleteConsumerModal.jsx",
+    "upstream": "b32506b3fd9971456e664eff376eb00b208ba1a33fb4b7837db9f9e4b14cf3be",
+    "local": "b32506b3fd9971456e664eff376eb00b208ba1a33fb4b7837db9f9e4b14cf3be"
+  },
+  {
+    "file": "src/components/topic/ConsumerResetOffsetDialog.jsx",
+    "upstream": "b80ff041f862684220bcf878659c7c81d845f0616ab20300239bf48cd51019c3",
+    "local": "b80ff041f862684220bcf878659c7c81d845f0616ab20300239bf48cd51019c3"
+  },
+  {
+    "file": "src/components/topic/ConsumerViewDialog.jsx",
+    "upstream": "64f84076f480ca21062090c6dad43ab051b1bfe70114f7d09b1ed44317b43240",
+    "local": "64f84076f480ca21062090c6dad43ab051b1bfe70114f7d09b1ed44317b43240"
+  },
+  {
+    "file": "src/components/topic/ResetOffsetResultDialog.jsx",
+    "upstream": "bc36bebabcb5da38f2a592ba0691f63a1887937390a3255abd2c308252b8644d",
+    "local": "bc36bebabcb5da38f2a592ba0691f63a1887937390a3255abd2c308252b8644d"
+  },
+  {
+    "file": "src/components/topic/RouterViewDialog.jsx",
+    "upstream": "696eae97e9ba0175ef4cce54875ad18031cb757d7475c0f8a10dfa27ad91c1ea",
+    "local": "696eae97e9ba0175ef4cce54875ad18031cb757d7475c0f8a10dfa27ad91c1ea"
+  },
+  {
+    "file": "src/components/topic/SendResultDialog.jsx",
+    "upstream": "556f87104480bcab5f975370a754a7eee7418014bf14540354f6d78ae019e030",
+    "local": "556f87104480bcab5f975370a754a7eee7418014bf14540354f6d78ae019e030"
+  },
+  {
+    "file": "src/components/topic/SendTopicMessageDialog.jsx",
+    "upstream": "00b36cf5e9fa7a0ae711365ecab947e0d4187b3ebbaf1620112da01230c36152",
+    "local": "00b36cf5e9fa7a0ae711365ecab947e0d4187b3ebbaf1620112da01230c36152"
+  },
+  {
+    "file": "src/components/topic/SkipMessageAccumulateDialog.jsx",
+    "upstream": "f5f45e2e364a1bf4cf3f0ddec482ba81cff3f67515688cc5058a34098531a397",
+    "local": "f5f45e2e364a1bf4cf3f0ddec482ba81cff3f67515688cc5058a34098531a397"
+  },
+  {
+    "file": "src/components/topic/StatsViewDialog.jsx",
+    "upstream": "139cab39170cf8199cd69444a626964cdc075440571eb232dd74081d165aedca",
+    "local": "139cab39170cf8199cd69444a626964cdc075440571eb232dd74081d165aedca"
+  },
+  {
+    "file": "src/components/topic/TopicModifyDialog.jsx",
+    "upstream": "ca469bf2b00dab1a37c05f74897e5789df238a61936c7bce5f75b65a53889d36",
+    "local": "ca469bf2b00dab1a37c05f74897e5789df238a61936c7bce5f75b65a53889d36"
+  },
+  {
+    "file": "src/components/topic/TopicSingleModifyForm.jsx",
+    "upstream": "1ea053cae4d1fb62843214f475dd04c9aa01353381acb2bc3dfeb5ace277ae10",
+    "local": "1ea053cae4d1fb62843214f475dd04c9aa01353381acb2bc3dfeb5ace277ae10"
+  },
+  {
+    "file": "src/dbx/HostGate.jsx",
+    "upstream": null,
+    "local": "18339b73fa1ca3d615c62518ae5ad560b9263cc6b641cec0e15ed5fb5accb07c"
+  },
+  {
+    "file": "src/dbx/bridge.js",
+    "upstream": null,
+    "local": "36c94cdf7ea0038c8ca1478a2001d0af91f05377a54cf5442fd559bda7378a75"
+  },
+  {
+    "file": "src/dbx/history.js",
+    "upstream": null,
+    "local": "5c573649341b478300a65922bf6c71f3af2b774e4304d463cbac460ae4beeed2"
+  },
+  {
+    "file": "src/dbx/preferences.js",
+    "upstream": null,
+    "local": "03401d40aec0a90ad0f4c70afe48b673ef4a2c323b39c9294dbbc951247bb1f5"
+  },
+  {
+    "file": "src/i18n/LanguageContext.js",
+    "upstream": "d189fccee886193be87158fb32c0d3fe79d5cb54d2901f88873b05be7be38fe8",
+    "local": "d189fccee886193be87158fb32c0d3fe79d5cb54d2901f88873b05be7be38fe8"
+  },
+  {
+    "file": "src/i18n/index.js",
+    "upstream": "6b7f1d880dcd071d9ee5099d5454697bf5589533b904ee789f3852b7edf77424",
+    "local": "6b7f1d880dcd071d9ee5099d5454697bf5589533b904ee789f3852b7edf77424"
+  },
+  {
+    "file": "src/index.css",
+    "upstream": "a36844d97074b285e7e2c4d21d9ba4302c7e3c6626c79d9f367c93547f3bb871",
+    "local": "a36844d97074b285e7e2c4d21d9ba4302c7e3c6626c79d9f367c93547f3bb871"
+  },
+  {
+    "file": "src/index.js",
+    "upstream": "bf0959380037f5af889d29be2d40a133ec2f2e1bfed988cfd0eb7e2fdc7a0287",
+    "local": "ef2829689b778a31576d6145d074f1feb62840216070d96bb5d45be81cb11805"
+  },
+  {
+    "file": "src/pages/Acl/acl.jsx",
+    "upstream": "9a36dd60755a7860761b7a2c73e6f73758fc09f864f1d5f51cdd94af362e2512",
+    "local": "3be04ebe70f94a68c17b53ce809bd07fd400194e5b0614af555f3c160e1bcb10"
+  },
+  {
+    "file": "src/pages/Cluster/cluster.jsx",
+    "upstream": "b7e37bdc998cb105ae3602ba7402fe32f88336c600e5856e025e3f203be4cb1e",
+    "local": "f1e8a0b39d0b4130ad94c16b28e98330b4637d2e21141fc27df7538d78ab68a1"
+  },
+  {
+    "file": "src/pages/Consumer/consumer.jsx",
+    "upstream": "97a0cf001e47547695dc1f32e73174cd6a2265591ad7262f159f7bea255ce6e5",
+    "local": "609564cd4ca888cf8cf8975e6a70c43f9b181674063a9f41060ec1b4ee1f47c1"
+  },
+  {
+    "file": "src/pages/Dashboard/DashboardPage.jsx",
+    "upstream": "43ba11275d74bd1e04384dbb58b861174bdb294f2397522e845abe5812d299f6",
+    "local": "85df547d3b017ee238c55a336d757bedf79bb1026d8f226980dd299069d359b3"
+  },
+  {
+    "file": "src/pages/DlqMessage/dlqmessage.jsx",
+    "upstream": "237258cb0b602fdf608d01a00b97c5e8a9d01343ffbdc07680490fb1574b1b5b",
+    "local": "237258cb0b602fdf608d01a00b97c5e8a9d01343ffbdc07680490fb1574b1b5b"
+  },
+  {
+    "file": "src/pages/Login/login.jsx",
+    "upstream": "c14028843c5c27179dd35951f7199fc59162bd626fad827afad706ed24e94ce3",
+    "local": null
+  },
+  {
+    "file": "src/pages/Message/message.jsx",
+    "upstream": "17aac592bc05dbbacdf5b607483f4b7494c1b2674badb56ee9fde6caf337f7cf",
+    "local": "17aac592bc05dbbacdf5b607483f4b7494c1b2674badb56ee9fde6caf337f7cf"
+  },
+  {
+    "file": "src/pages/MessageTrace/messagetrace.jsx",
+    "upstream": "b9b2f3e240a40649327228ea7716630251014b19bf2f65c9bd1e931a84f1a653",
+    "local": "b9b2f3e240a40649327228ea7716630251014b19bf2f65c9bd1e931a84f1a653"
+  },
+  {
+    "file": "src/pages/Ops/ops.jsx",
+    "upstream": "b25167017b0b48e8bc2f4340454f36791a3d91fc7bc5576d5f41deae623b220c",
+    "local": null
+  },
+  {
+    "file": "src/pages/Producer/producer.jsx",
+    "upstream": "6d5a6690d105b7f31784430f8a9c6162b86d0288d40b04ab32dadc27dc7bcb5a",
+    "local": "6d5a6690d105b7f31784430f8a9c6162b86d0288d40b04ab32dadc27dc7bcb5a"
+  },
+  {
+    "file": "src/pages/Proxy/proxy.jsx",
+    "upstream": "e9768c9af04121a7701e94b3a578aae8450a01ba0ad71cd8d57b639178cbbc34",
+    "local": null
+  },
+  {
+    "file": "src/pages/Topic/topic.jsx",
+    "upstream": "5ded9c2c9656fc17145ddb2a8963cce36cab4d834ea82c0713698de0d7811f2d",
+    "local": "ee4f9151a712fcc51b2bfa5385a3845d1d34b4442d5a812718d32e8c88ba0bde"
+  },
+  {
+    "file": "src/reportWebVitals.js",
+    "upstream": "6d064679618412ad4dc1d1c34932aa6f606f45c2c22535207690d5b555b53ef2",
+    "local": "6d064679618412ad4dc1d1c34932aa6f606f45c2c22535207690d5b555b53ef2"
+  },
+  {
+    "file": "src/router/index.jsx",
+    "upstream": "05d415d4ff50df708d3dc0b97580da47ca2bb074640a005a63da223ba4a52f49",
+    "local": "9825969fc6cf85ac6e9d080c366aba5ca020a46b3778284781e2f176a4687cef"
+  },
+  {
+    "file": "src/setupTests.js",
+    "upstream": "88db1a8d535d2ab2b7e7f0209ed4857f564e3f2119cba20892928961063df51a",
+    "local": "88db1a8d535d2ab2b7e7f0209ed4857f564e3f2119cba20892928961063df51a"
+  },
+  {
+    "file": "src/store/actions/themeActions.js",
+    "upstream": "d37b5969f088a58902b1903e5aa3855b16d92c88ca46976f528e43d073432fa6",
+    "local": "d37b5969f088a58902b1903e5aa3855b16d92c88ca46976f528e43d073432fa6"
+  },
+  {
+    "file": "src/store/context/ThemeContext.js",
+    "upstream": "ff7fbb7954076f2cc637dccf8af5d737e8fd285fa13acb3a92f298a5acce6452",
+    "local": "9078251c5f03806b76ab6bcc23de45579522a07de492607e30729845e31ade0a"
+  },
+  {
+    "file": "src/store/index.js",
+    "upstream": "064946d6f883dc1af3cc8288a14973bef3bc4eff51fcd0861bf00f40eae30cad",
+    "local": "064946d6f883dc1af3cc8288a14973bef3bc4eff51fcd0861bf00f40eae30cad"
+  },
+  {
+    "file": "src/store/reducers/themeReducer.js",
+    "upstream": "c430d4f883f72de35dcb2a6091b33c32ff148d932a7818c775c26d2bee11ad2d",
+    "local": "693a27a50154cbe3e479e27a01119e219c54924aa5a6fc8e31d640149e6264cb"
+  }
+]

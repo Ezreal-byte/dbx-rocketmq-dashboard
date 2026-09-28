@@ -1,0 +1,212 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const pad = (n: number, width = 2): string => String(n).padStart(width, '0');
+const safeDecimals = (decimals: number): number =>
+  Number.isFinite(decimals) ? Math.min(100, Math.max(0, Math.trunc(decimals))) : 1;
+
+/**
+ * Format a date string or Date object to 'YYYY-MM-DD HH:mm:ss'.
+ */
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (date === null || date === undefined || (typeof date === 'string' && !date.trim())) return '-';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '-';
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  );
+}
+
+export interface FormatUtcDateTimeOptions {
+  /**
+   * Append the viewer's short zone name (`GMT+8`). Defaults to true; pass false where the zone is
+   * column noise rather than information — a compact list whose every row would repeat the viewer's
+   * own zone, and whose width that suffix would otherwise dictate.
+   */
+  zone?: boolean;
+}
+
+/**
+ * Format a UTC timestamp for alert events in the viewer's timezone. Alert APIs
+ * serialize UTC LocalDateTime values without an offset, so normal Date parsing
+ * would incorrectly treat them as browser-local timestamps.
+ */
+export function formatUtcDateTime(
+  date: string | Date | null | undefined,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+  options: FormatUtcDateTimeOptions = {},
+): string {
+  if (date === null || date === undefined || (typeof date === 'string' && !date.trim())) return '-';
+  const utcDate =
+    typeof date === 'string' && !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(date.trim())
+      ? new Date(`${date}Z`)
+      : new Date(date);
+  if (Number.isNaN(utcDate.getTime())) return '-';
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+    timeZoneName: 'short',
+  }).formatToParts(utcDate);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value;
+  const year = value('year');
+  const month = value('month');
+  const day = value('day');
+  const hour = value('hour');
+  const minute = value('minute');
+  const second = value('second');
+  const zone = options.zone === false ? '' : value('timeZoneName');
+  return year && month && day && hour && minute && second
+    ? `${year}-${month}-${day} ${hour}:${minute}:${second}${zone ? ` ${zone}` : ''}`
+    : '-';
+}
+
+/**
+ * Format a date string or Date object to 'YYYY-MM-DD'.
+ */
+export function formatDate(date: string | Date | null | undefined): string {
+  if (date === null || date === undefined || (typeof date === 'string' && !date.trim())) return '-';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '-';
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+type RelativeTimeTranslator = (key: string, params?: Record<string, string | number>) => string;
+
+/**
+ * Format a recent timestamp for compact conversation history entries.
+ */
+export function formatRelativeTime(
+  timestamp: number,
+  lang: 'zh' | 'en',
+  t: RelativeTimeTranslator,
+  now = Date.now(),
+): string {
+  if (!Number.isFinite(timestamp) || !Number.isFinite(now)) return '-';
+  if (!timestamp) return t('ai.history.justNow');
+
+  const elapsed = Math.max(0, now - timestamp);
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return t('ai.history.justNow');
+  if (minutes < 60) return t('ai.history.minutesAgo', { count: minutes });
+
+  const updatedAt = new Date(timestamp);
+  const current = new Date(now);
+  const locale = lang === 'zh' ? 'zh-CN' : 'en-US';
+  if (updatedAt.toDateString() === current.toDateString()) {
+    return new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(updatedAt);
+  }
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(updatedAt);
+}
+
+/**
+ * Format a message timestamp for a compact chat bubble footer.
+ */
+export function formatTimeOfDay(timestamp: number): string {
+  if (!Number.isFinite(timestamp)) return '-';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '-';
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * Format bytes into human-readable string (1024-based).
+ * e.g. 1536 → '1.5 KB', 1048576 → '1 MB'
+ */
+export function formatBytes(bytes: number, decimals = 1): string {
+  if (!Number.isFinite(bytes)) return '-';
+  if (bytes === 0) return '0 B';
+  if (bytes < 0) return `-${formatBytes(-bytes, decimals)}`;
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const k = 1024;
+  const digits = safeDecimals(decimals);
+  let i = 0;
+  let value = Math.abs(bytes);
+  while (value >= k && i < units.length - 1) {
+    value /= k;
+    i += 1;
+  }
+  // The unit is chosen from the unrounded value, so a value just below a boundary used to render
+  // as 1024.0 KB - a mantissa of 1024 that the loop above exists to avoid.
+  while (i < units.length - 1 && Number(value.toFixed(digits)) >= k) {
+    value /= k;
+    i += 1;
+  }
+  return `${value.toFixed(digits)} ${units[i]}`;
+}
+
+/**
+ * Format a number with thousands separators.
+ * e.g. 1234567 → '1,234,567'
+ */
+export function formatNumber(num: number): string {
+  return Number.isFinite(num) ? num.toLocaleString('en-US') : '-';
+}
+
+/**
+ * Format delay seconds into human-readable duration.
+ * Supports i18n via the lang parameter.
+ * e.g. 82500 → zh: "22小时55分钟", en: "22h 55m"
+ */
+export function formatDelay(totalSeconds: number, lang: 'zh' | 'en' = 'zh'): string {
+  if (!Number.isFinite(totalSeconds)) return '-';
+  if (totalSeconds <= 0) return lang === 'zh' ? '0秒' : '0s';
+
+  const days = Math.floor(totalSeconds / 86400);
+  let remaining = totalSeconds % 86400;
+  const hours = Math.floor(remaining / 3600);
+  remaining %= 3600;
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+
+  if (lang === 'en') {
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (seconds > 0 && parts.length < 3) parts.push(`${seconds}s`);
+    return parts.length > 0 ? parts.join(' ') : '0s';
+  }
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}天`);
+  if (hours > 0) parts.push(`${hours}小时`);
+  if (minutes > 0) parts.push(`${minutes}分钟`);
+  if (seconds > 0 && parts.length < 3) parts.push(`${seconds}秒`);
+  return parts.length > 0 ? parts.join('') : '0秒';
+}
+
+/**
+ * Format a percentage value (0-100) with fixed decimals.
+ */
+export function formatPercent(value: number, decimals = 1): string {
+  if (!Number.isFinite(value)) return '-';
+  return `${value.toFixed(safeDecimals(decimals))}%`;
+}

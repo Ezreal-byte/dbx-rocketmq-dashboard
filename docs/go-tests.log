@@ -1,0 +1,129 @@
+=== RUN   TestParseConnectionSupportsAliasesAndMultipleNameServers
+--- PASS: TestParseConnectionSupportsAliasesAndMultipleNameServers (0.00s)
+=== RUN   TestParseConnectionValidatesNameServerAndSocksProxy
+--- PASS: TestParseConnectionValidatesNameServerAndSocksProxy (0.00s)
+=== RUN   TestConnectionConfigEqualIncludesTLSSkipVerify
+--- PASS: TestConnectionConfigEqualIncludesTLSSkipVerify (0.00s)
+=== RUN   TestWaitForBrokerRegistrationRetriesUntilMasterAppears
+--- PASS: TestWaitForBrokerRegistrationRetriesUntilMasterAppears (0.03s)
+=== RUN   TestWaitForBrokerRegistrationTimesOut
+--- PASS: TestWaitForBrokerRegistrationTimesOut (0.02s)
+=== RUN   TestParseAndFormatSocketAddress
+--- PASS: TestParseAndFormatSocketAddress (0.00s)
+=== RUN   TestClassifyConsumerGroup
+--- PASS: TestClassifyConsumerGroup (0.00s)
+=== RUN   TestDecodeConsumeStatsRepairsObjectKeys
+--- PASS: TestDecodeConsumeStatsRepairsObjectKeys (0.00s)
+=== RUN   TestDecodeConsumerStatusUnwrapsRocketMQ48Body
+--- PASS: TestDecodeConsumerStatusUnwrapsRocketMQ48Body (0.00s)
+=== RUN   TestDecodeConsumerStatusHandlesEmptyAndMalformedBodies
+--- PASS: TestDecodeConsumerStatusHandlesEmptyAndMalformedBodies (0.00s)
+=== RUN   TestReadConsumerStatusFromBrokersUsesBoundedRequestsAndMerges
+--- PASS: TestReadConsumerStatusFromBrokersUsesBoundedRequestsAndMerges (0.00s)
+=== RUN   TestReadConsumerStatusFromBrokersKeepsPartialResults
+--- PASS: TestReadConsumerStatusFromBrokersKeepsPartialResults (0.00s)
+=== RUN   TestResolveConsumerClientsUsesOneBestEffortLookup
+--- PASS: TestResolveConsumerClientsUsesOneBestEffortLookup (0.00s)
+=== RUN   TestResolveConsumerClientsKeepsLagAvailableOnStatusFailure
+--- PASS: TestResolveConsumerClientsKeepsLagAvailableOnStatusFailure (0.00s)
+=== RUN   TestBuildConsumerLagResultIncludesConsumerAssignments
+--- PASS: TestBuildConsumerLagResultIncludesConsumerAssignments (0.00s)
+=== RUN   TestMutationCoverageFailureMessage
+--- PASS: TestMutationCoverageFailureMessage (0.00s)
+=== RUN   TestSubscriptionGroupConfigWireShape
+--- PASS: TestSubscriptionGroupConfigWireShape (0.00s)
+=== RUN   TestDashboardAllowlistAndReadOnly
+--- PASS: TestDashboardAllowlistAndReadOnly (0.00s)
+=== RUN   TestDashboardPartialFailureIsNotSuccess
+--- PASS: TestDashboardPartialFailureIsNotSuccess (0.00s)
+=== RUN   TestDashboardDownloadIsolationAndClose
+--- PASS: TestDashboardDownloadIsolationAndClose (0.01s)
+=== RUN   TestDashboardStagedExport
+--- PASS: TestDashboardStagedExport (0.03s)
+=== RUN   TestDashboardHistoryAndMonitorIsolation
+--- PASS: TestDashboardHistoryAndMonitorIsolation (0.04s)
+=== RUN   TestTraceGraphOfficialShapeAndMissingPairs
+--- PASS: TestTraceGraphOfficialShapeAndMissingPairs (0.00s)
+=== RUN   TestRunningInfoRepairPreservesStackAndObjectQueueKeys
+--- PASS: TestRunningInfoRepairPreservesStackAndObjectQueueKeys (0.00s)
+=== RUN   TestStats24HourFallbackMatchesUpstream
+--- PASS: TestStats24HourFallbackMatchesUpstream (0.00s)
+=== RUN   TestDashboardIntegration
+    dashboard_integration_test.go:36: requires isolated RocketMQ broker
+--- SKIP: TestDashboardIntegration (0.00s)
+=== RUN   TestDashboardLiveIntegration
+    dashboard_live_test.go:23: requires isolated broker
+--- SKIP: TestDashboardLiveIntegration (0.00s)
+=== RUN   TestDashboardRoutingIntegration
+    dashboard_network_test.go:103: requires isolated broker
+--- SKIP: TestDashboardRoutingIntegration (0.00s)
+=== RUN   TestDashboardTLSIntegration
+    dashboard_network_test.go:177: requires isolated permissive TLS broker
+--- SKIP: TestDashboardTLSIntegration (0.00s)
+=== RUN   TestRemotingDisconnectWakesPendingRequests
+--- PASS: TestRemotingDisconnectWakesPendingRequests (0.00s)
+=== RUN   TestDashboardAuthenticationIntegration
+=== RUN   TestDashboardAuthenticationIntegration/admin
+    dashboard_transport_test.go:92: PASS /cluster/list.query
+    dashboard_transport_test.go:94: PASS /topic/createOrUpdate.do
+time="2026-09-29T00:01:12+08:00" level=info msg="change the route for clients"
+time="2026-09-29T00:01:12+08:00" level=info msg="the topic route info changed" changeTo="{\"OrderTopicConf\":\"\",\"queueDatas\":[{\"brokerName\":\"dbx-dashboard-auth\",\"readQueueNums\":1,\"writeQueueNums\":1,\"perm\":6,\"topicSynFlag\":0}],\"brokerDatas\":[{\"cluster\":\"DBXDashboardAuthTest\",\"brokerName\":\"dbx-dashboard-auth\",\"brokerAddrs\":{\"0\":\"127.0.0.1:50292\"}}]}" changedFrom="<nil>" topic=DBX_AUTH_1790611272913556500
+time="2026-09-29T00:01:12+08:00" level=info msg="The RMQClient stopping do rebalance" clientID=198.18.0.1@C6120001B12000000000903329400001
+time="2026-09-29T00:01:12+08:00" level=info msg="The RMQClient stopping update topic route info." clientID=198.18.0.1@C6120001B12000000000903329400001
+time="2026-09-29T00:01:12+08:00" level=info msg="will remove client from clientMap" clientID=198.18.0.1@C6120001B12000000000903329400001
+    dashboard_transport_test.go:96: PASS /topic/sendTopicMessage.do
+    dashboard_transport_test.go:97: PASS /topic/deleteTopic.do
+=== RUN   TestDashboardAuthenticationIntegration/wrong-secret
+=== RUN   TestDashboardAuthenticationIntegration/missing
+=== RUN   TestDashboardAuthenticationIntegration/limited
+--- PASS: TestDashboardAuthenticationIntegration (0.17s)
+    --- PASS: TestDashboardAuthenticationIntegration/admin (0.10s)
+    --- PASS: TestDashboardAuthenticationIntegration/wrong-secret (0.02s)
+    --- PASS: TestDashboardAuthenticationIntegration/missing (0.02s)
+    --- PASS: TestDashboardAuthenticationIntegration/limited (0.03s)
+=== RUN   TestDashboardRealPartialFailure
+    dashboard_transport_test.go:141: PASS /topic/deleteTopic.do
+--- PASS: TestDashboardRealPartialFailure (0.08s)
+=== RUN   TestRocketMQIntegration
+    integration_test.go:52: set ROCKETMQ_INTEGRATION=1 to run against a real RocketMQ broker
+--- SKIP: TestRocketMQIntegration (0.00s)
+=== RUN   TestRocketMQAgentProcessProtocol
+--- PASS: TestRocketMQAgentProcessProtocol (0.17s)
+=== RUN   TestRocketMQAgentHelperProcess
+--- PASS: TestRocketMQAgentHelperProcess (0.00s)
+=== RUN   TestBuildSendMessageCommandCopiesOnlyUserProperties
+--- PASS: TestBuildSendMessageCommandCopiesOnlyUserProperties (0.00s)
+=== RUN   TestBuildQueryMessageCommandUsesBrokerHeaderNames
+--- PASS: TestBuildQueryMessageCommandUsesBrokerHeaderNames (0.00s)
+=== RUN   TestInvokeRemotingAllowCodesAcceptsQueryMessageNotFound
+--- PASS: TestInvokeRemotingAllowCodesAcceptsQueryMessageNotFound (0.00s)
+=== RUN   TestInvokeRemotingAllowCodesPreservesOtherErrors
+--- PASS: TestInvokeRemotingAllowCodesPreservesOtherErrors (0.00s)
+=== RUN   TestFilterMessagesByStoreTimestampUsesInclusiveBounds
+--- PASS: TestFilterMessagesByStoreTimestampUsesInclusiveBounds (0.00s)
+=== RUN   TestInvokeRemotingAllowCodes
+--- PASS: TestInvokeRemotingAllowCodes (0.00s)
+=== RUN   TestMessageMapPreservesBinaryAndTextPayloads
+--- PASS: TestMessageMapPreservesBinaryAndTextPayloads (0.00s)
+=== RUN   TestProxyRoutesPrivateBrokersAndFailsClosedOnCollision
+--- PASS: TestProxyRoutesPrivateBrokersAndFailsClosedOnCollision (0.00s)
+=== RUN   TestProxyRoutingHonorsSocksAndExplicitBroker
+--- PASS: TestProxyRoutingHonorsSocksAndExplicitBroker (0.00s)
+=== RUN   TestSignCommandMatchesRocketMQACLAlgorithm
+--- PASS: TestSignCommandMatchesRocketMQACLAlgorithm (0.00s)
+=== RUN   TestRepairRocketMQJSONQuotesNonStandardKeys
+--- PASS: TestRepairRocketMQJSONQuotesNonStandardKeys (0.00s)
+=== RUN   TestRewriteResponseProxiesBrokerAddresses
+--- PASS: TestRewriteResponseProxiesBrokerAddresses (0.00s)
+=== RUN   TestTopicAttributesStringEmitsOnlyRocketMQ5Modifications
+--- PASS: TestTopicAttributesStringEmitsOnlyRocketMQ5Modifications (0.00s)
+=== RUN   TestClassifyTopicMessageType
+--- PASS: TestClassifyTopicMessageType (0.00s)
+=== RUN   TestPaginationAndMessageQueueParsing
+--- PASS: TestPaginationAndMessageQueueParsing (0.00s)
+=== RUN   TestDecodeTopicStatsRepairsObjectKeys
+--- PASS: TestDecodeTopicStatsRepairsObjectKeys (0.00s)
+=== RUN   TestConfigEntryMatchesAgentContract
+--- PASS: TestConfigEntryMatchesAgentContract (0.00s)
+PASS
+ok  	dbx-rocketmq-console	7.434s

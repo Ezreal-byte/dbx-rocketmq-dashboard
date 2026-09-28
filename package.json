@@ -1,0 +1,10 @@
+{
+  "name": "dbx-rocketmq-dashboard",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix web run build && node scripts/inline-studio.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "package:windows": "npm run build && go run scripts/package-cross.go -target windows-x64"
+  }
+}

@@ -1,0 +1,84 @@
+=== RUN   TestDashboardLiveIntegration
+    dashboard_live_test.go:52: PASS /topic/createOrUpdate.do
+    dashboard_live_test.go:53: PASS /consumer/createOrUpdate.do
+    dashboard_live_test.go:57: PASS /topic/createOrUpdate.do
+time="2026-09-29T00:07:52+08:00" level=info msg="the consumer start beginning" consumerGroup=G_DBX_LIVE_1790611672639984600 messageModel=Clustering unitMode=false
+time="2026-09-29T00:07:52+08:00" level=info msg="change the route for clients"
+time="2026-09-29T00:07:52+08:00" level=info msg="the topic route info changed" changeTo="{\"OrderTopicConf\":\"\",\"queueDatas\":[{\"brokerName\":\"dbx-dashboard-broker5\",\"readQueueNums\":1,\"writeQueueNums\":1,\"perm\":6,\"topicSynFlag\":0}],\"brokerDatas\":[{\"cluster\":\"DBXDashboardTest5\",\"brokerName\":\"dbx-dashboard-broker5\",\"brokerAddrs\":{\"0\":\"127.0.0.1:49229\"}}]}" changedFrom="<nil>" topic="%DLQ%G_DBX_LIVE_1790611672639984600"
+time="2026-09-29T00:07:52+08:00" level=warning msg="query topic route from server error" underlayError="topic not exist"
+time="2026-09-29T00:07:52+08:00" level=warning msg="queryTopicRouteInfoFromServer return nil" topic="%RETRY%G_DBX_LIVE_1790611672639984600"
+time="2026-09-29T00:07:52+08:00" level=info msg="change the route for clients"
+time="2026-09-29T00:07:52+08:00" level=info msg="the topic route info changed" changeTo="{\"OrderTopicConf\":\"\",\"queueDatas\":[{\"brokerName\":\"dbx-dashboard-broker5\",\"readQueueNums\":1,\"writeQueueNums\":1,\"perm\":6,\"topicSynFlag\":0}],\"brokerDatas\":[{\"cluster\":\"DBXDashboardTest5\",\"brokerName\":\"dbx-dashboard-broker5\",\"brokerAddrs\":{\"0\":\"127.0.0.1:49229\"}}]}" changedFrom="<nil>" topic=DBX_LIVE_1790611672639984600
+time="2026-09-29T00:07:52+08:00" level=info msg="change the route for clients"
+time="2026-09-29T00:07:52+08:00" level=info msg="the topic route info changed" changeTo="{\"OrderTopicConf\":\"\",\"queueDatas\":[{\"brokerName\":\"dbx-dashboard-broker5\",\"readQueueNums\":1,\"writeQueueNums\":1,\"perm\":6,\"topicSynFlag\":0}],\"brokerDatas\":[{\"cluster\":\"DBXDashboardTest5\",\"brokerName\":\"dbx-dashboard-broker5\",\"brokerAddrs\":{\"0\":\"127.0.0.1:49229\"}}]}" changedFrom="<nil>" topic="%RETRY%G_DBX_LIVE_1790611672639984600"
+time="2026-09-29T00:07:52+08:00" level=info msg="delete mq from offset table" MessageQueue="MessageQueue [topic=DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]" consumerGroup=G_DBX_LIVE_1790611672639984600
+time="2026-09-29T00:07:52+08:00" level=info msg="fetch offset of mq from broker success" MessageQueue="MessageQueue [topic=DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]" consumerGroup=G_DBX_LIVE_1790611672639984600 offset=-1
+time="2026-09-29T00:07:52+08:00" level=info msg="the MessageQueue changed, version also updated" changeTo=1790611672732375400 changedFrom=1790611672702923400
+time="2026-09-29T00:07:52+08:00" level=info msg="The PullThresholdForTopic is changed" changeTo=102400 changedFrom=102400
+time="2026-09-29T00:07:52+08:00" level=info msg="The PullThresholdSizeForTopic is changed" changeTo=51200 changedFrom=51200
+time="2026-09-29T00:07:52+08:00" level=info msg="MessageQueue do balance done" cidAllSize=1 clientID=198.18.0.1@13832 consumerGroup=G_DBX_LIVE_1790611672639984600 mqAllSize=1 rebalanceResultSet="[MessageQueue [topic=DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]]" rebalanceResultSize=1 topic=DBX_LIVE_1790611672639984600
+    dashboard_live_test.go:100: PASS live Go consumer received broker message C6120001360800000000903943c00001
+time="2026-09-29T00:07:52+08:00" level=info msg="delete mq from offset table" MessageQueue="MessageQueue [topic=%DLQ%G_DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]" consumerGroup=G_DBX_LIVE_1790611672639984600
+time="2026-09-29T00:07:52+08:00" level=info msg="fetch offset of mq from broker success" MessageQueue="MessageQueue [topic=%DLQ%G_DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]" consumerGroup=G_DBX_LIVE_1790611672639984600 offset=-1
+time="2026-09-29T00:07:52+08:00" level=info msg="the MessageQueue changed, version also updated" changeTo=1790611672743962900 changedFrom=1790611672702923400
+time="2026-09-29T00:07:52+08:00" level=info msg="The PullThresholdForTopic is changed" changeTo=51200 changedFrom=102400
+time="2026-09-29T00:07:52+08:00" level=info msg="The PullThresholdSizeForTopic is changed" changeTo=25600 changedFrom=51200
+    dashboard_live_test.go:101: PASS /consumer/consumerConnection.query
+time="2026-09-29T00:07:52+08:00" level=info msg="MessageQueue do balance done" cidAllSize=1 clientID=198.18.0.1@13832 consumerGroup=G_DBX_LIVE_1790611672639984600 mqAllSize=1 rebalanceResultSet="[MessageQueue [topic=%DLQ%G_DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]]" rebalanceResultSize=1 topic="%DLQ%G_DBX_LIVE_1790611672639984600"
+time="2026-09-29T00:07:52+08:00" level=info msg="delete mq from offset table" MessageQueue="MessageQueue [topic=%RETRY%G_DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]" consumerGroup=G_DBX_LIVE_1790611672639984600
+time="2026-09-29T00:07:52+08:00" level=info msg="fetch offset of mq from broker success" MessageQueue="MessageQueue [topic=%RETRY%G_DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]" consumerGroup=G_DBX_LIVE_1790611672639984600 offset=-1
+time="2026-09-29T00:07:52+08:00" level=info msg="the MessageQueue changed, version also updated" changeTo=1790611672754687300 changedFrom=1790611672702923400
+time="2026-09-29T00:07:52+08:00" level=info msg="The PullThresholdForTopic is changed" changeTo=17066 changedFrom=51200
+time="2026-09-29T00:07:52+08:00" level=info msg="The PullThresholdSizeForTopic is changed" changeTo=8533 changedFrom=25600
+time="2026-09-29T00:07:52+08:00" level=info msg="MessageQueue do balance done" cidAllSize=1 clientID=198.18.0.1@13832 consumerGroup=G_DBX_LIVE_1790611672639984600 mqAllSize=1 rebalanceResultSet="[MessageQueue [topic=%RETRY%G_DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]]" rebalanceResultSize=1 topic="%RETRY%G_DBX_LIVE_1790611672639984600"
+time="2026-09-29T00:07:52+08:00" level=info msg="receive get consumer running info request..."
+    dashboard_live_test.go:103: PASS /consumer/consumerRunningInfo.query
+    dashboard_live_test.go:104: PASS /producer/producerConnection.query
+time="2026-09-29T00:07:52+08:00" level=info msg="receive consume message directly request..."
+    dashboard_live_test.go:105: PASS /message/consumeMessageDirectly.do
+    dashboard_live_test.go:133: PASS /dlqMessage/queryDlqMessageByConsumerGroup.query
+    dashboard_live_test.go:134: PASS /dlqMessage/exportDlqMessage.do
+    dashboard_live_test.go:138: PASS /dlqMessage/batchExportDlqMessage.do
+time="2026-09-29T00:07:52+08:00" level=info msg="receive consume message directly request..."
+    dashboard_live_test.go:147: PASS /dlqMessage/batchResendDlqMessage.do
+    dashboard_live_test.go:148: PASS actual DLQ query, export and consumer resend
+    dashboard_live_test.go:153: PASS /consumer/resetOffset.do
+    dashboard_live_test.go:158: PASS /topic/createOrUpdate.do
+time="2026-09-29T00:07:52+08:00" level=warning msg="the pull request offset illegal" PullRequest="[ConsumerGroup: G_DBX_LIVE_1790611672639984600, Topic: DBX_LIVE_1790611672639984600, MessageQueue: brokerName=dbx-dashboard-broker5, queueId=0, nextOffset=1]" result=
+time="2026-09-29T00:07:52+08:00" level=info msg="push consumer quit pullMessage for dropped queue." consumerGroup=G_DBX_LIVE_1790611672639984600
+    dashboard_live_test.go:190: PASS real producer trace graph contract
+time="2026-09-29T00:07:53+08:00" level=info msg="change the route for clients"
+time="2026-09-29T00:07:53+08:00" level=info msg="the topic route info changed" changeTo="{\"OrderTopicConf\":\"\",\"queueDatas\":[{\"brokerName\":\"dbx-dashboard-broker5\",\"readQueueNums\":1,\"writeQueueNums\":1,\"perm\":6,\"topicSynFlag\":0}],\"brokerDatas\":[{\"cluster\":\"DBXDashboardTest5\",\"brokerName\":\"dbx-dashboard-broker5\",\"brokerAddrs\":{\"0\":\"127.0.0.1:49229\"}}]}" changedFrom="<nil>" topic=DBX_LIVE_1790611672639984600
+time="2026-09-29T00:07:53+08:00" level=info msg="change the route for clients"
+time="2026-09-29T00:07:53+08:00" level=info msg="the topic route info changed" changeTo="{\"OrderTopicConf\":\"\",\"queueDatas\":[{\"brokerName\":\"dbx-dashboard-broker5\",\"readQueueNums\":1,\"writeQueueNums\":1,\"perm\":6,\"topicSynFlag\":0}],\"brokerDatas\":[{\"cluster\":\"DBXDashboardTest5\",\"brokerName\":\"dbx-dashboard-broker5\",\"brokerAddrs\":{\"0\":\"127.0.0.1:49229\"}}]}" changedFrom="<nil>" topic=TRACE_DBX_LIVE_1790611672639984600
+time="2026-09-29T00:07:53+08:00" level=info msg="The RMQClient stopping do rebalance" clientID=198.18.0.1@C6120001360800000000903947a80007
+time="2026-09-29T00:07:53+08:00" level=info msg="will remove client from clientMap" clientID=198.18.0.1@C6120001360800000000903947a80007
+time="2026-09-29T00:07:53+08:00" level=info msg="The RMQClient stopping update topic route info." clientID=198.18.0.1@C6120001360800000000903947a80005
+time="2026-09-29T00:07:53+08:00" level=info msg="The RMQClient stopping do rebalance" clientID=198.18.0.1@C6120001360800000000903947a80005
+time="2026-09-29T00:07:53+08:00" level=info msg="will remove client from clientMap" clientID=198.18.0.1@C6120001360800000000903947a80005
+    dashboard_live_test.go:191: PASS /topic/sendTopicMessage.do
+time="2026-09-29T00:07:53+08:00" level=info msg="The RMQClient stopping update topic route info." clientID=198.18.0.1@C6120001360800000000903947a80007
+    dashboard_live_test.go:192: PASS /messageTrace/viewMessageTraceGraph.query
+    dashboard_live_test.go:198: PASS /acl/createUser.do
+    dashboard_live_test.go:202: PASS /acl/users.query
+    dashboard_live_test.go:203: PASS /acl/updateUser.do
+    dashboard_live_test.go:205: PASS /acl/createAcl.do
+    dashboard_live_test.go:205: PASS /acl/updateAcl.do
+    dashboard_live_test.go:207: PASS /acl/acls.query
+    dashboard_live_test.go:208: PASS /acl/deleteAcl.do
+    dashboard_live_test.go:200: PASS /acl/deleteUser.do
+time="2026-09-29T00:07:53+08:00" level=info msg="push consumer close pullConsumer listener." consumerGroup=G_DBX_LIVE_1790611672639984600
+time="2026-09-29T00:07:53+08:00" level=info msg="push consumer quit pullMessage for dropped queue." consumerGroup=G_DBX_LIVE_1790611672639984600
+time="2026-09-29T00:07:53+08:00" level=info msg="push consumer quit pullMessage for dropped queue." consumerGroup=G_DBX_LIVE_1790611672639984600
+time="2026-09-29T00:07:53+08:00" level=info msg="update offset to broker success" MessageQueue="MessageQueue [topic=%DLQ%G_DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]" consumerGroup=G_DBX_LIVE_1790611672639984600 offset=1
+time="2026-09-29T00:07:53+08:00" level=info msg="update offset to broker success" MessageQueue="MessageQueue [topic=%RETRY%G_DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]" consumerGroup=G_DBX_LIVE_1790611672639984600 offset=-1
+time="2026-09-29T00:07:53+08:00" level=info msg="update offset to broker success" MessageQueue="MessageQueue [topic=DBX_LIVE_1790611672639984600, brokerName=dbx-dashboard-broker5, queueId=0]" consumerGroup=G_DBX_LIVE_1790611672639984600 offset=1
+time="2026-09-29T00:07:53+08:00" level=info msg="The RMQClient stopping update topic route info." clientID=198.18.0.1@13832
+time="2026-09-29T00:07:53+08:00" level=info msg="The RMQClient stopping do rebalance" clientID=198.18.0.1@13832
+time="2026-09-29T00:07:53+08:00" level=info msg="will remove client from clientMap" clientID=198.18.0.1@13832
+    dashboard_live_test.go:48: PASS /topic/deleteTopic.do
+    dashboard_live_test.go:48: PASS /topic/deleteTopic.do
+    dashboard_live_test.go:50: PASS /consumer/deleteSubGroup.do
+--- PASS: TestDashboardLiveIntegration (0.75s)
+PASS
+ok  	dbx-rocketmq-console	1.069s

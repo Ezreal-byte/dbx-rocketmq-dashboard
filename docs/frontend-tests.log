@@ -1,0 +1,54 @@
+
+> dbx-rocketmq-console@0.1.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: history retains timestamps, zeros and actual sampling gaps
+ok 1 - history retains timestamps, zeros and actual sampling gaps
+  ---
+  duration_ms: 5.7141
+  ...
+# Subtest: bridge preserves JSON, query, method and isolated connection identity
+ok 2 - bridge preserves JSON, query, method and isolated connection identity
+  ---
+  duration_ms: 2.7863
+  ...
+# Subtest: direct-consume params and ACL broker selection survive the transport
+ok 3 - direct-consume params and ACL broker selection survive the transport
+  ---
+  duration_ms: 0.8284
+  ...
+# Subtest: exports use the native download contract, including binary chart data
+ok 4 - exports use the native download contract, including binary chart data
+  ---
+  duration_ms: 3.679
+  ...
+# Subtest: large exports stage bounded chunks before opening native download
+ok 5 - large exports stage bounded chunks before opening native download
+  ---
+  duration_ms: 35.6335
+  ...
+# Subtest: every retained business page calls an implemented API function
+ok 6 - every retained business page calls an implemented API function
+  ---
+  duration_ms: 10.3097
+  ...
+# Subtest: every retained endpoint has an explicit Go allowlist entry
+ok 7 - every retained endpoint has an explicit Go allowlist entry
+  ---
+  duration_ms: 1.0094
+  ...
+# Subtest: packaged HTML embeds parseable scripts and no browser network resources
+ok 8 - packaged HTML embeds parseable scripts and no browser network resources
+  ---
+  duration_ms: 184.6339
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 494.6769

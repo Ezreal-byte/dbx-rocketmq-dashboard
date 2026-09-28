@@ -1,0 +1,53 @@
+=== RUN   TestStudioGuards
+--- PASS: TestStudioGuards (0.00s)
+=== RUN   TestStudioIntegration
+    studio_test.go:22: PASS /topics/create
+    studio_test.go:23: PASS /groups/create
+    studio_test.go:24: PASS /instances
+    studio_test.go:24: PASS /instances/1/capabilities
+    studio_test.go:24: PASS /dashboard
+    studio_test.go:24: PASS /clusters
+    studio_test.go:24: PASS /clusters/registry
+    studio_test.go:24: PASS /nameservers
+    studio_test.go:24: PASS /producer/groups
+    studio_test.go:24: PASS /producer/connection
+    studio_test.go:24: PASS /clients
+    studio_test.go:24: PASS /metrics/profiles
+    studio_test.go:25: PASS /topics
+    studio_test.go:25: PASS /topics/page
+    studio_test.go:25: PASS /topics/export
+    studio_test.go:25: PASS /topics/DBX_STUDIO_1790613943589297100/routes
+    studio_test.go:25: PASS /topics/DBX_STUDIO_1790613943589297100/consumers
+    studio_test.go:25: PASS /topics/DBX_STUDIO_1790613943589297100/consumers/page
+    studio_test.go:26: PASS /groups/GID_DBX_STUDIO_1790613943589297100
+    studio_test.go:26: PASS /groups/GID_DBX_STUDIO_1790613943589297100/refresh
+    studio_test.go:26: PASS /groups/GID_DBX_STUDIO_1790613943589297100/settings
+    studio_test.go:26: PASS /groups/GID_DBX_STUDIO_1790613943589297100/subscriptions
+    studio_test.go:26: PASS /groups/GID_DBX_STUDIO_1790613943589297100/progress
+    studio_test.go:27: PASS /groups
+    studio_test.go:27: PASS /groups/page
+    studio_test.go:27: PASS /groups/export
+    studio_test.go:28: PASS /groups/settings
+time="2026-09-29T00:45:47+08:00" level=info msg="change the route for clients"
+time="2026-09-29T00:45:47+08:00" level=info msg="the topic route info changed" changeTo="{\"OrderTopicConf\":\"\",\"queueDatas\":[{\"brokerName\":\"dbx-dashboard-broker5\",\"readQueueNums\":2,\"writeQueueNums\":2,\"perm\":6,\"topicSynFlag\":0}],\"brokerDatas\":[{\"cluster\":\"DBXDashboardTest5\",\"brokerName\":\"dbx-dashboard-broker5\",\"brokerAddrs\":{\"0\":\"127.0.0.1:62080\"}}]}" changedFrom="<nil>" topic=DBX_STUDIO_1790613943589297100
+time="2026-09-29T00:45:47+08:00" level=info msg="The RMQClient stopping update topic route info." clientID=198.18.0.1@C61200019B2800000000905bfa780001
+time="2026-09-29T00:45:47+08:00" level=info msg="The RMQClient stopping do rebalance" clientID=198.18.0.1@C61200019B2800000000905bfa780001
+time="2026-09-29T00:45:47+08:00" level=info msg="will remove client from clientMap" clientID=198.18.0.1@C61200019B2800000000905bfa780001
+    studio_test.go:29: PASS /topics/send
+    studio_test.go:30: PASS /messages
+    studio_test.go:32: PASS /messages/page
+    studio_test.go:32: PASS /messages/queues
+    studio_test.go:32: PASS /messages/queue-message
+    studio_test.go:33: PASS /groups/reset-offset/preview
+    studio_test.go:33: PASS /groups/reset-offset
+    studio_test.go:34: PASS /dlq
+    studio_test.go:35: PASS /clusters/DBXDashboardTest5
+    studio_test.go:35: PASS /clusters/DBXDashboardTest5/broker-config-diff
+    studio_test.go:35: PASS /nameservers/config-diff
+    studio_test.go:36: PASS /acl/users/page
+    studio_test.go:36: PASS /acl/rules
+    studio_test.go:38: PASS /groups/delete
+    studio_test.go:38: PASS /topics/delete
+--- PASS: TestStudioIntegration (4.85s)
+PASS
+ok  	dbx-rocketmq-console	15.164s

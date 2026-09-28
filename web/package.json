@@ -1,0 +1,71 @@
+{
+  "name": "rocketmq-studio-web",
+  "private": true,
+  "version": "3.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && npm run license:check",
+    "license:check": "node scripts/licenses.mjs check",
+    "license:test": "node --test scripts/licenses.test.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "prepare": "cd .. && husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,json}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.5.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "antd": "^5.22.0",
+    "axios": "^1.7.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.0.0",
+    "remark-gfm": "^4.0.1",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@lobehub/icons-static-svg": "^1.95.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.62.1",
+    "@typescript-eslint/parser": "^8.62.1",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.5.2",
+    "axios-mock-adapter": "^2.1.0",
+    "eslint": "^10.6.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
+    "lint-staged": "^16.4.0",
+    "postcss": "^8.5.16",
+    "prettier": "^3.9.4",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.62.1",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.10"
+  }
+}
