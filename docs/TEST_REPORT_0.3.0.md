@@ -11,8 +11,8 @@
 | Node 传输与打包测试 | 12 项通过；含新版 Studio JSON、查询参数、连接切换、取消、错误和二进制导出传输 |
 | Go 后端单元测试 | 46 项通过，8 项真实集群测试在无集群模式按条件跳过 |
 | DBX Go SDK | 测试通过 |
-| RocketMQ 4.9.7 | 后端全集回归和 Studio 接口回归；涵盖 ACL 认证、代理、只读、真实消费者与消息 |
-| RocketMQ 5.3.3 | Dashboard 与 Studio 接口回归；ACL 2.0 用户与规则读取 |
+| RocketMQ 4.9.7 | 后端全集回归 60 项通过、0 跳过；涵盖 Studio 接口、ACL 认证、代理、只读、真实消费者与消息 |
+| RocketMQ 5.3.3 | Dashboard 与 Studio 回归 13 项通过、2 项按版本/测试配置跳过；含 ACL 2.0 用户与规则读取 |
 | 页面冒烟验证 | DBX 开发宿主实际 iframe 连接 5.3.3，监控首页与 Group 页面加载真实数据，侧栏显示新 Logo 与 RocketMQ Dashboard 名称 |
 | Windows x64 安装包 | Go 1.20.14 构建、PE 导入检查、106 个文件 SHA-256 与 artifact 元数据校验通过 |
 | 图标 | 插件和侧栏均使用用户提供的 RocketMQ.svg；复制时三份文件 SHA-256 一致 |
