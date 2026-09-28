@@ -75,13 +75,19 @@ jobs:
           npm ci --prefix web --ignore-scripts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run build
-      - name: Test transport and backend
+      - name: Test frontend transport
+        run: npm test
+      - name: Test Go backend
+        working-directory: backend
+        run: go test -count=1 -timeout 180s ./...
+      - name: Test DBX Go SDK
+        working-directory: backend/sdk
+        run: go test ./...
+      - name: Verify pinned Go toolchain
         run: |
-          npm test
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          go -C backend test -count=1 -timeout 180s ./...
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          go -C backend/sdk test ./...
+          $actual = go version
+          Write-Output $actual
+          if ($actual -notmatch 'go1\.20\.14 ') { throw 'Go 1.20.14 required' }
       - name: Collect licenses and package Windows x64
         run: |
           node scripts/third-party-licenses.mjs

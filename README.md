@@ -42,8 +42,12 @@
 npm ci --prefix web --ignore-scripts
 npm run build
 npm test
-go -C backend test -count=1 -timeout 180s ./...
-go -C backend/sdk test ./...
+Push-Location backend
+go test -count=1 -timeout 180s ./...
+Push-Location sdk
+go test ./...
+Pop-Location
+Pop-Location
 node scripts/third-party-licenses.mjs
 go run scripts/package-cross.go -target windows-x64
 ./scripts/verify-package.ps1
@@ -59,10 +63,12 @@ $env:ROCKETMQ_INTEGRATION='1'
 $env:ROCKETMQ_NAMESRV_ADDR='127.0.0.1:19876'
 $env:ROCKETMQ_VERSION='4.9.7'
 $env:ROCKETMQ_AUTH_NAMESRV='127.0.0.1:39876'
-go -C backend test -count=1 -timeout 180s -v ./...
+Push-Location backend
+go test -count=1 -timeout 180s -v ./...
 $env:ROCKETMQ_NAMESRV_ADDR='127.0.0.1:29876'
 $env:ROCKETMQ_VERSION='5.3.3'
-go -C backend test -count=1 -timeout 180s -v -run 'TestStudio|TestDashboard' ./...
+go test -count=1 -timeout 180s -v -run 'TestStudio|TestDashboard' ./...
+Pop-Location
 ```
 
 `tests/plain_acl.yml` 中的账号仅为公开、隔离的测试夹具。Java 只用于测试 RocketMQ 服务端。开发预览使用 `node scripts/start-dev.mjs`，需相邻 DBX 项目的已构建开发宿主，或通过 `DBX_PLUGIN_DEV_RUNTIME` 指定它。
