@@ -34,7 +34,7 @@ func (s *session) studioTopic(ctx context.Context, c *admin.Client, name string,
 	if e != nil {
 		return nil, e
 	}
-	return map[string]any{"name": name, "namespace": "", "instanceId": "1", "clusterId": s.clusterName, "type": valueOrDefault(cfg.Attributes["message.type"], "NORMAL"), "writeQueues": cfg.WriteQueueNums, "readQueues": cfg.ReadQueueNums, "perm": studioPerm(cfg.Perm), "messageCount": count, "tps": nil, "consumerGroupCount": len(groups), "remark": "", "gmtCreate": nil, "gmtModified": nil}, nil
+	return map[string]any{"name": name, "namespace": "", "instanceId": s.studioInstanceID(), "clusterId": s.clusterName, "type": valueOrDefault(cfg.Attributes["message.type"], "NORMAL"), "writeQueues": cfg.WriteQueueNums, "readQueues": cfg.ReadQueueNums, "perm": studioPerm(cfg.Perm), "messageCount": count, "tps": nil, "consumerGroupCount": len(groups), "remark": "", "gmtCreate": nil, "gmtModified": nil}, nil
 }
 func (s *session) studioGroup(ctx context.Context, c *admin.Client, name string, cfg *subscriptionGroupConfig) (map[string]any, error) {
 	conn, e := s.dashboardConnection(ctx, c, name, "")
@@ -90,7 +90,7 @@ func (s *session) studioGroup(ctx context.Context, c *admin.Client, name string,
 	} else if oldest > 0 {
 		delay = maxValue(int64(0), (time.Now().UnixMilli()-oldest)/1000)
 	}
-	return map[string]any{"name": name, "namespace": "", "clusterId": s.clusterName, "instanceId": "1", "subscriptionMode": mode, "consumeType": consumeType, "onlineInstances": len(instances), "totalLag": lag, "subscribedTopics": sortedKeys(topics), "subscriptionDataType": filterType, "deliveryOrderType": map[bool]string{true: "FIFO", false: "NORMAL"}[cfg.ConsumeMessageOrderly], "retryMaxTimes": cfg.RetryMaxTimes, "gmtCreate": nil, "gmtModified": nil, "delaySeconds": delay, "instances": instances}, nil
+	return map[string]any{"name": name, "namespace": "", "clusterId": s.clusterName, "instanceId": s.studioInstanceID(), "subscriptionMode": mode, "consumeType": consumeType, "onlineInstances": len(instances), "totalLag": lag, "subscribedTopics": sortedKeys(topics), "subscriptionDataType": filterType, "deliveryOrderType": map[bool]string{true: "FIFO", false: "NORMAL"}[cfg.ConsumeMessageOrderly], "retryMaxTimes": cfg.RetryMaxTimes, "gmtCreate": nil, "gmtModified": nil, "delaySeconds": delay, "instances": instances}, nil
 }
 func (s *session) studioMetadata(ctx context.Context, c *admin.Client, path string, p map[string]any) (any, error) {
 	topicMode := strings.HasPrefix(path, "/topics")
@@ -405,5 +405,5 @@ func (s *session) studioReset(ctx context.Context, c *admin.Client, path string,
 	if path == "/groups/reset-offset" {
 		return s.dashboardReset(ctx, c, topic, group, timestamp, true)
 	}
-	return map[string]any{"instanceId": "1", "groupName": group, "topic": topic, "timestamp": timestamp, "complete": true, "allowReset": len(rows) > 0, "queueCount": len(rows), "warningCount": 0, "rewindQueueCount": rewind, "fastForwardQueueCount": forward, "currentTotalLag": current, "projectedTotalLag": projected, "totalOffsetDelta": delta, "warnings": []any{}, "queues": rows}, nil
+	return map[string]any{"instanceId": s.studioInstanceID(), "groupName": group, "topic": topic, "timestamp": timestamp, "complete": true, "allowReset": len(rows) > 0, "queueCount": len(rows), "warningCount": 0, "rewindQueueCount": rewind, "fastForwardQueueCount": forward, "currentTotalLag": current, "projectedTotalLag": projected, "totalOffsetDelta": delta, "warnings": []any{}, "queues": rows}, nil
 }

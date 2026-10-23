@@ -7,14 +7,13 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
 )
 
 // Studio is an API compatibility layer over the same per-connection Go client.
 // Only registered routes are reachable, and writes fail closed on read-only sessions.
 var studioRoutes = map[string]dashboardRoute{
 	"/settings/datasources": {"GET", false},
-	"/instances": {"GET", false}, "/instances/:id/capabilities": {"GET", false},
+	"/instances":            {"GET", false}, "/instances/:id/capabilities": {"GET", false},
 	"/dashboard": {"GET", false}, "/clusters": {"GET", false}, "/clusters/registry": {"GET", false}, "/clusters/:id": {"GET", false},
 	"/clusters/:id/broker-config-diff": {"GET", false}, "/clusters/config/preview": {"POST", false}, "/clusters/config/update": {"POST", true},
 	"/nameservers": {"GET", false}, "/nameservers/config-diff": {"GET", false},
@@ -71,6 +70,13 @@ func studioResult(data any, err error) map[string]any {
 	}
 	return map[string]any{"code": 0, "message": "", "data": data}
 }
+
+// Upstream Studio selects instances by Instance.name, not the numeric record id.
+// Every resource must use the same value or the UI filters out valid rows (#1).
+func (s *session) studioInstanceID() string {
+	return valueOrDefault(s.name, s.clusterName)
+}
+
 func (s *session) studioRequest(request map[string]any) map[string]any {
 	path, segments := studioRoute(stringValue(request, "path"))
 	route, ok := studioRoutes[path]
@@ -95,7 +101,7 @@ func (s *session) studioRequest(request map[string]any) map[string]any {
 		p[k] = v
 	}
 	// A Studio instance represents the active DBX connection only; credentials never enter the UI.
-	if id := stringValue(p, "instanceId"); id != "" && id != "1" && id != valueOrDefault(s.name, s.clusterName) {
+	if id := stringValue(p, "instanceId"); id != "" && id != "1" && id != s.studioInstanceID() {
 		return studioResult(nil, fmt.Errorf("instance does not belong to this DBX connection"))
 	}
 	c, _, err := s.requireClient()

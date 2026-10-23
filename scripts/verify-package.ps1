@@ -1,5 +1,9 @@
-param([string]$Package = 'dist/io.dbx.rocketmq-dashboard-console-0.3.0-windows-x64.dbxp')
+param([string]$Package)
 $ErrorActionPreference = 'Stop'
+if (-not $Package) {
+    $manifest = Get-Content -LiteralPath 'manifest.json' -Raw -Encoding UTF8 | ConvertFrom-Json
+    $Package = "dist/$($manifest.id)-$($manifest.version)-windows-x64.dbxp"
+}
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $Package))
 try {

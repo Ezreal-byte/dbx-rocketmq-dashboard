@@ -4,8 +4,8 @@
   "icon": "assets/rocketmq.svg",
   "tags": ["rocketmq", "dashboard", "message-queue"],
   "permissions": ["host.workbench"],
-  "source": "https://github.com/Ezreal-byte/dbx-rocketmq-dashboard/tree/v0.3.0",
+  "source": "https://github.com/Ezreal-byte/dbx-rocketmq-dashboard/tree/v0.3.1",
   "homepage": "https://github.com/Ezreal-byte/dbx-rocketmq-dashboard",
   "license": "Apache-2.0",
-  "releaseNotes": "项目更名并采用 RocketMQ Logo；复用 Apache RocketMQ Dashboard 原生 Studio UI，移除 AI。新增自动构建和 4.9.7 / 5.3.3 集成测试。Windows x64；完整验收范围和已知限制见仓库测试报告。"
+  "releaseNotes": "修复 #1：Topic 总数正常但表格为空。统一资源返回的 instanceId 与原生 Studio 的连接名称标识，覆盖普通、SOCKS5 代理及连接名称为空的情况；新增五个 Topic 的分页可见性回归。"
 }

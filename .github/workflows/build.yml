@@ -124,4 +124,4 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("manifest.json","utf8")); if(process.env.RELEASE_TAG!=="v"+p.version) process.exit(1);'
-          gh release create "$RELEASE_TAG" dist/*.dbxp dist/*.artifact.json dist/release-candidates.json --verify-tag --title "dbx-rocketmq-dashboard $RELEASE_TAG" --notes-file docs/RELEASE_0.3.0.md
+          gh release create "$RELEASE_TAG" dist/*.dbxp dist/*.artifact.json dist/release-candidates.json --verify-tag --title "dbx-rocketmq-dashboard $RELEASE_TAG" --notes-file "docs/RELEASE_${RELEASE_TAG#v}.md"

@@ -115,10 +115,10 @@ func studioClusterConfig(props map[string]string) map[string]any {
 func (s *session) studioTopology(ctx context.Context, c *admin.Client, path string, p map[string]any) (any, error) {
 	switch path {
 	case "/instances/:id/capabilities":
-		if stringValue(p, "id") != "1" && stringValue(p, "id") != valueOrDefault(s.name, s.clusterName) {
+		if stringValue(p, "id") != "1" && stringValue(p, "id") != s.studioInstanceID() {
 			return nil, fmt.Errorf("unknown instance")
 		}
-		return map[string]any{"instanceId": "1", "vendor": "APACHE", "accessType": "DIRECT", "capabilities": []string{"TOPIC_MANAGEMENT", "CONSUMER_GROUP_MANAGEMENT", "MESSAGE_QUERY", "MESSAGE_TRACE", "MESSAGE_SEND", "ACL_MANAGEMENT", "DLQ_MANAGEMENT"}}, nil
+		return map[string]any{"instanceId": s.studioInstanceID(), "vendor": "APACHE", "accessType": "DIRECT", "capabilities": []string{"TOPIC_MANAGEMENT", "CONSUMER_GROUP_MANAGEMENT", "MESSAGE_QUERY", "MESSAGE_TRACE", "MESSAGE_SEND", "ACL_MANAGEMENT", "DLQ_MANAGEMENT"}}, nil
 	case "/instances":
 		topics, complete := s.collectTopicConfigs(ctx)
 		if !complete {
@@ -138,7 +138,7 @@ func (s *session) studioTopology(ctx context.Context, c *admin.Client, path stri
 		if !studioMatches(s.name, p) {
 			return []any{}, nil
 		}
-		return []any{map[string]any{"id": 1, "name": valueOrDefault(s.name, s.clusterName), "remark": "DBX", "type": kind, "vendor": "APACHE", "endpoint": s.serverAddr, "topicCount": len(topics), "consumerGroupCount": len(groups), "resourceCountsAvailable": true, "gmtCreate": nil, "gmtModified": nil}}, nil
+		return []any{map[string]any{"id": 1, "name": s.studioInstanceID(), "remark": "DBX", "type": kind, "vendor": "APACHE", "endpoint": s.serverAddr, "topicCount": len(topics), "consumerGroupCount": len(groups), "resourceCountsAvailable": true, "gmtCreate": nil, "gmtModified": nil}}, nil
 	case "/clusters", "/clusters/registry", "/clusters/:id", "/dashboard":
 		clusters, e := s.studioClusters(ctx, c)
 		if e != nil {
