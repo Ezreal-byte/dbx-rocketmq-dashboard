@@ -28,6 +28,20 @@ services:
     volumes: ["./broker5.conf:/test/broker.conf:ro"]
     ports: ["127.0.0.1:30911:30911", "127.0.0.1:30909:30909"]
     depends_on: [namesrv5]
+  namesrv55:
+    image: apache/rocketmq:5.5.0
+    command: sh mqnamesrv
+    environment:
+      JAVA_OPT_EXT: -Xms128m -Xmx128m -Xmn64m -XX:-UseContainerSupport
+    ports: ["127.0.0.1:49876:9876"]
+  broker55:
+    image: apache/rocketmq:5.5.0
+    command: sh mqbroker -n namesrv55:9876 -c /test/broker.conf
+    environment:
+      JAVA_OPT_EXT: -Xms256m -Xmx256m -Xmn128m -XX:-UseContainerSupport
+    volumes: ["./broker55.conf:/test/broker.conf:ro"]
+    ports: ["127.0.0.1:50911:50911", "127.0.0.1:50909:50909"]
+    depends_on: [namesrv55]
   namesrv-auth:
     image: apache/rocketmq:4.9.7
     command: sh mqnamesrv

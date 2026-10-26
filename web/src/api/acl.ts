@@ -17,6 +17,8 @@ export interface AclRule {
   resourceType: string;
   resourcePattern: string;
   actions: string[];
+  sourceIps?: string[];
+  policyType?: string;
   decision: string;
   scope: string;
   aclVersion: number | string;

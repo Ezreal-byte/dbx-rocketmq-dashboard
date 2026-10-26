@@ -92,6 +92,9 @@ func (s *session) dashboardACL(ctx context.Context, c *admin.Client, path string
 		code = remoting.DeleteAcl
 		fields["subject"] = stringValue(p, "subject")
 		fields["resource"] = stringValue(p, "resource")
+		if kind := stringValue(p, "policyType"); kind != "" {
+			fields["policyType"] = kind
+		}
 		if fields["subject"] == "" {
 			return nil, fmt.Errorf("subject is required")
 		}

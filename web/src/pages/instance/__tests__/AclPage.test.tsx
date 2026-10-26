@@ -131,6 +131,91 @@ describe('ACL page', () => {
     expect(aclService.pageAclUsers).toHaveBeenCalledTimes(1);
   });
 
+  it('preserves wildcard identity and edits source IP restrictions from Broker rules', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    vi.mocked(aclService.listAclRules).mockResolvedValue({
+      items: [
+        {
+          id: 'default-topic-wildcard',
+          principal: 'remote-user',
+          resource: '*',
+          resourceType: 'Topic',
+          resourcePattern: 'ANY',
+          actions: ['Pub', 'Sub', 'Get'],
+          sourceIps: ['127.0.0.1/32'],
+          policyType: 'Default',
+          decision: 'Allow',
+          scope: 'cluster',
+          aclVersion: '2.0',
+        },
+      ],
+      total: 1,
+      page: 1,
+      size: 20,
+    });
+    vi.mocked(aclService.updateAclRule).mockResolvedValue({} as AclRule);
+    renderWithProviders(<AclPage />);
+    const row = await screen.findByRole('row', { name: /remote-user/ });
+    expect(within(row).getByText('*')).toBeInTheDocument();
+    expect(within(row).getByText('允许')).toBeInTheDocument();
+    expect(within(row).getByText('127.0.0.1/32')).toBeInTheDocument();
+    await user.click(within(row).getByRole('button', { name: /编辑/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('资源名称')).toBeDisabled();
+    expect(within(dialog).getByRole('checkbox', { name: 'GET' })).toBeChecked();
+    await user.type(
+      within(dialog).getByRole('combobox', { name: '来源 IP 白名单' }),
+      '10.0.0.0/8{Enter}',
+    );
+    await user.click(within(dialog).getByRole('button', { name: /保\s*存/ }));
+    await waitFor(() =>
+      expect(aclService.updateAclRule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'default-topic-wildcard',
+          resource: '*',
+          resourcePattern: 'ANY',
+          policyType: 'Default',
+          decision: 'ALLOW',
+          actions: ['PUB', 'SUB', 'GET'],
+          sourceIps: ['127.0.0.1/32', '10.0.0.0/8'],
+        }),
+      ),
+    );
+  });
+
+  it('shows Broker errors and keeps the ACL editor open after a failed update', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    vi.mocked(aclService.updateAclRule).mockRejectedValue(
+      new Error('Broker broker-a: permission denied'),
+    );
+    renderWithProviders(<AclPage />);
+    const row = await screen.findByRole('row', { name: /remote-user/ });
+    await user.click(within(row).getByRole('button', { name: /编辑/ }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /保\s*存/ }));
+    expect(await screen.findByText('Broker broker-a: permission denied')).toBeInTheDocument();
+    expect(dialog).toBeInTheDocument();
+    expect(aclService.updateAclRule).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceIps: [] }),
+    );
+  });
+
+  it('requires a Secret Key when creating an ACL user', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    renderWithProviders(<AclPage />);
+    await user.click(await screen.findByText('用户管理'));
+    await user.click(
+      within(screen.getByRole('tabpanel', { name: '用户管理' })).getByRole('button', {
+        name: /添加用户/,
+      }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByPlaceholderText('例：user-order-service'), 'new-user');
+    await user.click(within(dialog).getByRole('button', { name: /添\s*加/ }));
+    expect(await within(dialog).findByText(/请输入.*Secret Key/)).toBeInTheDocument();
+    expect(aclService.createAclUser).not.toHaveBeenCalled();
+  });
+
   it('reloads the server rule page after deleting one ACL rule', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const confirmSpy = vi.spyOn(Modal, 'confirm').mockImplementation((config) => {
@@ -304,11 +389,11 @@ describe('ACL page', () => {
     expect(screen.getByText('cluster-a')).toBeInTheDocument();
   });
 
-  it('explains that ACL records are Studio-local metadata', async () => {
+  it('explains that ACL records are written to the connected cluster', async () => {
     renderWithProviders(<AclPage />);
 
     expect(await screen.findByTestId('acl-local-metadata-notice')).toHaveTextContent(
-      '当前 ACL 规则和用户仅保存为 Studio 本地元数据',
+      'ACL 规则和用户直接读取并写入当前连接的 RocketMQ 集群',
     );
   });
 
@@ -501,7 +586,7 @@ describe('ACL page', () => {
     const dialog = await screen.findByRole('dialog');
 
     expect(within(dialog).queryByText('Access Key')).not.toBeInTheDocument();
-    expect(within(dialog).queryByText('Secret Key')).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Secret Key')).toHaveValue('');
     await user.click(within(dialog).getByRole('button', { name: /保\s*存/ }));
 
     await waitFor(() => expect(aclService.updateAclUser).toHaveBeenCalledTimes(1));
@@ -584,6 +669,7 @@ describe('ACL page', () => {
       within(dialog).getByPlaceholderText('例：user-order-service'),
       'orders-service',
     );
+    await user.type(within(dialog).getByLabelText('Secret Key'), 'new-user-secret');
     const clusterInput = within(dialog).getByRole('combobox');
     await user.type(clusterInput, 'cluster-a,cluster-b,');
     await user.click(within(dialog).getByRole('button', { name: /添\s*加/ }));
@@ -591,6 +677,7 @@ describe('ACL page', () => {
     await waitFor(() => expect(aclService.createAclUser).toHaveBeenCalledTimes(1));
     expect(aclService.createAclUser).toHaveBeenCalledWith({
       username: 'orders-service',
+      secretKey: 'new-user-secret',
       admin: false,
       clusters: ['cluster-a', 'cluster-b'],
       instanceId: undefined,
@@ -619,6 +706,7 @@ describe('ACL page', () => {
       within(dialog).getByPlaceholderText('例：user-order-service'),
       'orders-service',
     );
+    await user.type(within(dialog).getByLabelText('Secret Key'), 'new-user-secret');
     const clusterInput = within(dialog).getByRole('combobox');
     await user.type(clusterInput, 'cluster-a,cluster-b,');
     await user.click(within(dialog).getByRole('button', { name: /添\s*加/ }));

@@ -129,6 +129,10 @@ func TestDashboardRoutingIntegration(t *testing.T) {
 		brokerPort = "20911"
 		vipPort = "20909"
 	}
+	if nsPort == "49876" {
+		brokerPort = "50911"
+		vipPort = "50909"
+	}
 	for _, target := range targets() {
 		_, p, _ := net.SplitHostPort(target)
 		seenNS = seenNS || p == nsPort

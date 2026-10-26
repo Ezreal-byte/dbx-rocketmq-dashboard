@@ -1,6 +1,6 @@
 {
   "name": "dbx-rocketmq-dashboard",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "scripts": {
     "build": "npm --prefix web run build && node scripts/inline-studio.mjs",

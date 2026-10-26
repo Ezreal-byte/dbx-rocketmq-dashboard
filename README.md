@@ -6,9 +6,9 @@
 
 本项目的 **UI 和功能复刻自 Apache RocketMQ Dashboard**：直接复用其 RocketMQ Studio 原生 React 页面、组件、样式和业务交互，用 Go 重写后端接口，通过 DBX invoke 调用。运行插件不需要 Java，也不需要另外部署 Dashboard HTTP 服务。本项目是独立的社区 DBX 插件，并非 Apache Software Foundation 官方发行版。
 
-当前版本：**0.3.1**，Windows x64。插件 ID 保持为 `io.dbx.rocketmq-dashboard-console`，便于从早期 `dbx-rocketmq-console` 升级。源代码采用 Apache-2.0 许可证，保留上游 LICENSE、NOTICE 和版权头。
+当前版本：**0.3.2**，Windows x64。插件 ID 保持为 `io.dbx.rocketmq-dashboard-console`，便于从早期 `dbx-rocketmq-console` 升级。源代码采用 Apache-2.0 许可证，保留上游 LICENSE、NOTICE 和版权头。
 
-0.3.1 修复 Topic 总数正常但表格为空的问题，详见 [更新说明](docs/RELEASE_0.3.1.md)。
+0.3.2 修复 ACL 允许/拒绝显示、通配符规则编辑与删除，新增来源 IP 白名单和用户 Secret Key 编辑；详见 [更新说明](docs/RELEASE_0.3.2.md) 与 [回归测试报告](docs/TEST_REPORT_0.3.2.md)。
 
 ## 界面和功能
 
@@ -35,6 +35,7 @@
 | --- | --- | --- |
 | 4.9.7 | `127.0.0.1:19876` | 留空 |
 | 5.3.3 | `127.0.0.1:29876` | 留空 |
+| 5.5.0 | `127.0.0.1:49876` | 留空 |
 
 ## 构建与测试
 
@@ -44,6 +45,7 @@
 npm ci --prefix web --ignore-scripts
 npm run build
 npm test
+npm --prefix web test -- src/pages/instance/__tests__/AclPage.test.tsx src/api/acl.test.ts src/services/aclService.test.ts src/utils/aclRiskDiagnostics.test.ts
 Push-Location backend
 go test -count=1 -timeout 180s ./...
 Push-Location sdk
@@ -56,7 +58,7 @@ go run scripts/package-cross.go -target windows-x64
 node scripts/release-metadata.mjs
 ```
 
-需要指定 Go 安装时，设置 `GO_BIN`，并把其 `bin` 目录加入 `PATH`。产物位于 `dist/`。GitHub Actions 在主分支和 PR 上运行构建与 4.9.7 / 5.3.3 集成测试；推送匹配 manifest 版本的 `v*` 标签后，全部检查通过才发布 Release。
+需要指定 Go 安装时，设置 `GO_BIN`，并把其 `bin` 目录加入 `PATH`。产物位于 `dist/`。GitHub Actions 在主分支和 PR 上运行构建与 4.9.7 / 5.3.3 / 5.5.0 集成测试；推送匹配 manifest 版本的 `v*` 标签后，全部检查通过才发布 Release。
 
 ```powershell
 docker compose -f tests/compose.yaml up -d
@@ -69,6 +71,9 @@ Push-Location backend
 go test -count=1 -timeout 180s -v ./...
 $env:ROCKETMQ_NAMESRV_ADDR='127.0.0.1:29876'
 $env:ROCKETMQ_VERSION='5.3.3'
+go test -count=1 -timeout 180s -v -run 'TestStudio|TestDashboard' ./...
+$env:ROCKETMQ_NAMESRV_ADDR='127.0.0.1:49876'
+$env:ROCKETMQ_VERSION='5.5.0'
 go test -count=1 -timeout 180s -v -run 'TestStudio|TestDashboard' ./...
 Pop-Location
 ```

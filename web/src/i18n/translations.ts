@@ -1974,13 +1974,24 @@ const translations: Record<string, Record<Lang, string>> = {
     en: 'Access control rules and user permissions, {rules} rules, {users} users',
   },
   'acl.localMetadataNotice': {
-    zh: '当前 ACL 规则和用户仅保存为 Studio 本地元数据',
-    en: 'Current ACL rules and users are stored as Studio-local metadata',
+    zh: 'ACL 规则和用户直接读取并写入当前连接的 RocketMQ 集群',
+    en: 'ACL rules and users are read from and written to the connected RocketMQ cluster',
   },
   'acl.localMetadataDescription': {
-    zh: '它们尚不会下发到所选 RocketMQ 实例。实例级 ACL Provider 接入完成前，请在集群侧管理实际 ACL 策略。',
-    en: 'They are not applied to the selected RocketMQ instance. Manage the effective ACL policy on the cluster until instance-scoped provider support is available.',
+    zh: '规则与用户管理使用 ACL 2.0；集群 ACL 配置页用于 ACL 1.0。操作需要 Broker 支持相应协议及当前连接具备管理权限。',
+    en: 'Rules and users use ACL 2.0; cluster ACL configuration uses ACL 1.0. Operations require Broker protocol support and management permissions for this connection.',
   },
+  'acl.sourceIps': { zh: '来源 IP 白名单', en: 'Source IP whitelist' },
+  'acl.sourceIpsAll': { zh: '不限制来源 IP', en: 'Any source IP' },
+  'acl.sourceIpsHelp': {
+    zh: '输入 IP 或 CIDR，以逗号或回车分隔；留空不限制。经 SSH 连接时，以 Broker 看到的来源 IP 为准。',
+    en: 'Enter IP addresses or CIDRs separated by commas or Enter. Empty allows any source. Over SSH, use the source IP seen by the Broker.',
+  },
+  'acl.identityHelp': {
+    zh: '主体和资源标识不可修改；如需更换，请创建新规则后删除旧规则。',
+    en: 'Principal and resource identity cannot be changed. Create a new rule and then delete the old rule to replace them.',
+  },
+  'acl.secretKeyKeep': { zh: '留空保留现有密钥', en: 'Leave blank to keep the current secret' },
   'acl.tencentRoleNotice': {
     zh: '当前 ACL 用户和规则由 Tencent Cloud Role 实时驱动',
     en: 'Current ACL users and rules are backed by Tencent Cloud roles',

@@ -74,9 +74,16 @@ import { analyzeAclRisk, type AclRiskIssue } from '../../utils/aclRiskDiagnostic
 type AclEntityId = AclRule['id'];
 type AclRuleFormValues = Pick<
   AclRule,
-  'principal' | 'resource' | 'resourceType' | 'resourcePattern' | 'actions' | 'decision' | 'scope'
+  | 'principal'
+  | 'resource'
+  | 'resourceType'
+  | 'resourcePattern'
+  | 'actions'
+  | 'decision'
+  | 'scope'
+  | 'sourceIps'
 >;
-type AclUserFormValues = Pick<AclUser, 'username' | 'admin' | 'clusters'>;
+type AclUserFormValues = Pick<AclUser, 'username' | 'admin' | 'clusters' | 'secretKey'>;
 
 const normalizeRule = (rule: AclRule): AclRule => ({
   ...rule,
@@ -85,8 +92,9 @@ const normalizeRule = (rule: AclRule): AclRule => ({
   resource: rule.resource ?? '',
   resourceType: rule.resourceType ?? '',
   resourcePattern: rule.resourcePattern ?? '',
-  actions: rule.actions ?? [],
-  decision: rule.decision ?? '',
+  actions: (rule.actions ?? []).map((action) => action.toUpperCase()),
+  decision: (rule.decision ?? '').toUpperCase(),
+  sourceIps: rule.sourceIps ?? [],
   scope: rule.scope ?? '',
   // Normalize to a string so version filters and tag coloring work whether the backend
   // returns a number (2.0) or a string ("2.0").
@@ -206,8 +214,9 @@ const AclPageContent = ({
           setRulePage(Math.max(1, Math.ceil(nextRules.total / rulePageSize)));
         }
       })
-      .catch(() => {
-        if (mounted) message.error(t('common.fetchDataFailed'));
+      .catch((error) => {
+        if (mounted)
+          message.error(error instanceof Error ? error.message : t('common.fetchDataFailed'));
       })
       .finally(() => {
         if (mounted) setRulesLoading(false);
@@ -228,8 +237,9 @@ const AclPageContent = ({
           }
         }
       })
-      .catch(() => {
-        if (mounted) message.error(t('common.fetchDataFailed'));
+      .catch((error) => {
+        if (mounted)
+          message.error(error instanceof Error ? error.message : t('common.fetchDataFailed'));
       })
       .finally(() => {
         if (mounted) setUsersLoading(false);
@@ -279,6 +289,7 @@ const AclPageContent = ({
       resource: tencentRoleMode ? '*' : undefined,
       resourcePattern: tencentRoleMode ? 'LITERAL' : 'PREFIX',
       actions: ['PUB'],
+      sourceIps: [],
       decision: 'ALLOW',
       scope: 'cluster',
     });
@@ -287,12 +298,14 @@ const AclPageContent = ({
 
   const openEditRuleModal = (rule: AclRule) => {
     setEditingRule(rule);
+    ruleForm.resetFields();
     ruleForm.setFieldsValue({
       principal: rule.principal,
       resourceType: rule.resourceType,
       resource: rule.resource,
       resourcePattern: rule.resourcePattern,
       actions: rule.actions,
+      sourceIps: rule.sourceIps ?? [],
       decision: rule.decision,
       scope: rule.scope,
     });
@@ -333,7 +346,7 @@ const AclPageContent = ({
       setRuleModalOpen(false);
     } catch (error) {
       if (isFormValidationError(error)) return;
-      message.error(t('common.operationFailed'));
+      message.error(error instanceof Error ? error.message : t('common.operationFailed'));
     } finally {
       setRuleSubmitting(false);
     }
@@ -344,8 +357,8 @@ const AclPageContent = ({
       await deleteAclRule(id, selectedInstanceId);
       setRuleRefreshKey((prev) => prev + 1);
       message.success(t('acl.ruleDeleted'));
-    } catch {
-      message.error(t('common.operationFailed'));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : t('common.operationFailed'));
     }
   };
 
@@ -375,14 +388,14 @@ const AclPageContent = ({
           secretKey: credentials.secretKey ?? '',
         },
       }));
-    } catch {
+    } catch (error) {
       if (revealRequestGenerationRef.current[userKey] !== revealGeneration) return;
       setRevealedKeys((prev) => {
         const next = new Set(prev);
         next.delete(userId);
         return next;
       });
-      message.error(t('common.fetchDataFailed'));
+      message.error(error instanceof Error ? error.message : t('common.fetchDataFailed'));
     }
   };
 
@@ -395,6 +408,7 @@ const AclPageContent = ({
 
   const openEditUserModal = (user: NormalizedAclUser) => {
     setEditingUser(user);
+    userForm.resetFields();
     userForm.setFieldsValue({
       username: user.username,
       admin: user.admin,
@@ -411,16 +425,31 @@ const AclPageContent = ({
         const updated = await updateAclUser({
           id: editingUser.id,
           username: values.username,
+          ...(values.secretKey ? { secretKey: values.secretKey } : {}),
           admin: values.admin ?? false,
           clusters: values.clusters ?? [],
           instanceId: selectedInstanceId,
         });
         const normalized = normalizeUser(updated);
         setUsers((prev) => prev.map((u) => (u.id === editingUser.id ? normalized : u)));
+        const userKey = String(editingUser.id);
+        revealRequestGenerationRef.current[userKey] =
+          (revealRequestGenerationRef.current[userKey] ?? 0) + 1;
+        setRevealedKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(editingUser.id);
+          return next;
+        });
+        setCredentialsByUser((prev) => {
+          const next = { ...prev };
+          delete next[userKey];
+          return next;
+        });
         message.success(t('acl.userUpdated'));
       } else {
         await createAclUser({
           username: values.username,
+          secretKey: values.secretKey,
           admin: values.admin ?? false,
           clusters: values.clusters ?? [],
           instanceId: selectedInstanceId,
@@ -433,7 +462,7 @@ const AclPageContent = ({
       setUserModalOpen(false);
     } catch (error) {
       if (isFormValidationError(error)) return;
-      message.error(t('common.operationFailed'));
+      message.error(error instanceof Error ? error.message : t('common.operationFailed'));
     } finally {
       setUserSubmitting(false);
     }
@@ -446,8 +475,8 @@ const AclPageContent = ({
       // and an emptied last page falls back to the previous one (same as the rules tab).
       setUserRefreshKey((prev) => prev + 1);
       message.success(t('acl.userDeleted'));
-    } catch {
-      message.error(t('common.operationFailed'));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : t('common.operationFailed'));
     }
   };
 
@@ -467,8 +496,8 @@ const AclPageContent = ({
       const normalized = normalizeUser(updated);
       setUsers((prev) => prev.map((u) => (u.id === user.id ? normalized : u)));
       message.success(checked ? t('acl.adminSet') : t('acl.adminRemoved'));
-    } catch {
-      message.error(t('common.operationFailed'));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : t('common.operationFailed'));
     } finally {
       adminUpdateInFlightRef.current.delete(user.id);
       setAdminUpdatingIds((current) => {
@@ -494,9 +523,9 @@ const AclPageContent = ({
       if (examineRequestGenerationRef.current !== requestGeneration) return;
       setClusterConfig(config);
       message.success(t('acl.configExamined'));
-    } catch {
+    } catch (error) {
       if (examineRequestGenerationRef.current !== requestGeneration) return;
-      message.error(t('common.operationFailed'));
+      message.error(error instanceof Error ? error.message : t('common.operationFailed'));
     } finally {
       if (examineRequestGenerationRef.current === requestGeneration) {
         setConfigLoading(false);
@@ -560,7 +589,7 @@ const AclPageContent = ({
       setPlainModalOpen(false);
     } catch (error) {
       if (isFormValidationError(error)) return;
-      message.error(t('common.operationFailed'));
+      message.error(error instanceof Error ? error.message : t('common.operationFailed'));
     } finally {
       setPlainSubmitting(false);
     }
@@ -604,7 +633,9 @@ const AclPageContent = ({
       sorter: (a, b) => a.resource.localeCompare(b.resource),
       render: (_: unknown, record: AclRule) => (
         <Space size={6}>
+          <Tag>{record.resourceType}</Tag>
           <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{record.resource}</span>
+          {record.policyType === 'Default' && <Tag>Default</Tag>}
           <Tag
             color={record.resourcePattern === 'LITERAL' ? 'blue' : 'green'}
             style={{ fontSize: 14, lineHeight: '18px' }}
@@ -613,6 +644,13 @@ const AclPageContent = ({
           </Tag>
         </Space>
       ),
+    },
+    {
+      title: t('acl.sourceIps'),
+      dataIndex: 'sourceIps',
+      key: 'sourceIps',
+      width: 200,
+      render: (ips?: string[]) => (ips?.length ? ips.join(', ') : t('acl.sourceIpsAll')),
     },
     {
       title: t('acl.permissions'),
@@ -1463,6 +1501,7 @@ const AclPageContent = ({
           >
             <Select
               placeholder={t('acl.selectPrincipal')}
+              disabled={!!editingRule}
               showSearch
               optionFilterProp="label"
               options={users.map((u) => ({
@@ -1481,7 +1520,7 @@ const AclPageContent = ({
           >
             <Select
               placeholder={t('acl.selectResourceType')}
-              disabled={tencentRoleMode}
+              disabled={tencentRoleMode || !!editingRule}
               options={
                 tencentRoleMode
                   ? [{ value: 'Cluster', label: 'Cluster' }]
@@ -1489,6 +1528,7 @@ const AclPageContent = ({
                       { value: 'Topic', label: 'Topic' },
                       { value: 'Group', label: 'Group' },
                       { value: 'Cluster', label: 'Cluster' },
+                      { value: 'Any', label: t('acl.all') },
                     ]
               }
             />
@@ -1501,13 +1541,21 @@ const AclPageContent = ({
               { required: true, message: t('acl.inputRequired', { field: t('acl.resourceName') }) },
             ]}
           >
-            <Input placeholder={t('acl.resourceNamePlaceholder')} disabled={tencentRoleMode} />
+            <Input
+              placeholder={t('acl.resourceNamePlaceholder')}
+              disabled={tencentRoleMode || !!editingRule}
+            />
           </Form.Item>
 
-          <Form.Item name="resourcePattern" label={t('acl.matchPattern')}>
-            <Radio.Group disabled={tencentRoleMode}>
+          <Form.Item
+            name="resourcePattern"
+            label={t('acl.matchPattern')}
+            extra={editingRule ? t('acl.identityHelp') : undefined}
+          >
+            <Radio.Group disabled={tencentRoleMode || !!editingRule}>
               <Radio.Button value="LITERAL">{t('acl.literal')}</Radio.Button>
               <Radio.Button value="PREFIX">{t('acl.prefix')}</Radio.Button>
+              <Radio.Button value="ANY">{t('acl.all')}</Radio.Button>
             </Radio.Group>
           </Form.Item>
 
@@ -1519,12 +1567,27 @@ const AclPageContent = ({
             ]}
           >
             <Checkbox.Group>
-              <Space>
+              <Space wrap>
                 <Checkbox value="PUB">{t('acl.pub')}</Checkbox>
                 <Checkbox value="SUB">{t('acl.sub')}</Checkbox>
                 <Checkbox value="ALL">{t('acl.all')}</Checkbox>
+                {!tencentRoleMode &&
+                  ['GET', 'LIST', 'CREATE', 'UPDATE', 'DELETE'].map((action) => (
+                    <Checkbox key={action} value={action}>
+                      {action}
+                    </Checkbox>
+                  ))}
               </Space>
             </Checkbox.Group>
+          </Form.Item>
+
+          <Form.Item name="sourceIps" label={t('acl.sourceIps')} extra={t('acl.sourceIpsHelp')}>
+            <Select
+              mode="tags"
+              tokenSeparators={[',', ' ']}
+              allowClear
+              placeholder="192.168.1.0/24"
+            />
           </Form.Item>
 
           <Form.Item name="decision" label={t('acl.decision')}>
@@ -1573,6 +1636,20 @@ const AclPageContent = ({
               disabled={!!editingUser}
               prefix={<User size={14} color="#9CA3AF" />}
             />
+          </Form.Item>
+
+          <Form.Item
+            name="secretKey"
+            label={t('acl.secretKey')}
+            extra={editingUser ? t('acl.secretKeyKeep') : undefined}
+            rules={[
+              {
+                required: !editingUser,
+                message: t('acl.inputRequired', { field: t('acl.secretKey') }),
+              },
+            ]}
+          >
+            <Input.Password autoComplete="new-password" />
           </Form.Item>
 
           <Form.Item name="admin" label={t('acl.admin')} valuePropName="checked">

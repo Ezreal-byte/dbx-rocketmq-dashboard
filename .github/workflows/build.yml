@@ -26,6 +26,10 @@ jobs:
             services: 'namesrv5 broker5'
             broker: 'broker5'
             nameserver: '127.0.0.1:29876'
+          - version: '5.5.0'
+            services: 'namesrv55 broker55'
+            broker: 'broker55'
+            nameserver: '127.0.0.1:49876'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -77,6 +81,9 @@ jobs:
           npm run build
       - name: Test frontend transport
         run: npm test
+      - name: Test ACL UI and services
+        working-directory: web
+        run: npm test -- src/pages/instance/__tests__/AclPage.test.tsx src/api/acl.test.ts src/services/aclService.test.ts src/utils/aclRiskDiagnostics.test.ts
       - name: Test Go backend
         working-directory: backend
         run: go test -count=1 -timeout 180s ./...

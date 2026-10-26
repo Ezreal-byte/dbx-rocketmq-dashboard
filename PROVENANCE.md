@@ -2,6 +2,10 @@
 
 This is an independent DBX plugin, not an Apache Software Foundation release.
 
+## 0.3.2 ACL compatibility fixes
+
+Local patches to the original ACL page add source IP restrictions, explicit user secret entry, Broker error feedback and correct cluster-backed wording. Go translates Broker enum names and wildcard resources into the native page contract and carries policy type in rule IDs. The resource identity is immutable in the edit dialog; replacing a principal/resource requires creating the replacement and deleting the old rule. Source and protocol behavior were checked against RocketMQ 5.5.0 `auth/.../authorization/model/Resource.java`, `AuthorizationMetadataManagerImpl.java`, `AuthenticationMetadataManagerImpl.java` and `common/.../action/Action.java`. The upstream UI commit remains unchanged; no UI dependency was added. Regression details: `docs/TEST_REPORT_0.3.2.md`.
+
 ## 0.3.0 naming and artwork
 
 The project is now named `dbx-rocketmq-dashboard`; the existing plugin ID is preserved for upgrades. Its UI and functional scope replicate Apache RocketMQ Dashboard, with the Go/DBX integration maintained independently. The RocketMQ SVG supplied by the project owner is copied unchanged to `assets/rocketmq.svg` and `web/src/assets/rocketmq.svg`. Apache RocketMQ names and artwork identify the upstream technology and do not imply ASF endorsement. Current verification and limitations are recorded in `docs/TEST_REPORT_0.3.0.md`.

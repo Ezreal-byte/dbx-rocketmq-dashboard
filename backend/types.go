@@ -2,7 +2,7 @@ package main
 
 const (
 	pluginID      = "io.dbx.rocketmq-dashboard-console"
-	pluginVersion = "0.3.1"
+	pluginVersion = "0.3.2"
 )
 
 // externalConfig mirrors `external_config` of the connection-provider fields

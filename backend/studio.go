@@ -28,7 +28,8 @@ var studioRoutes = map[string]dashboardRoute{
 	"/dlq": {"GET", false}, "/dlq/:id/messages": {"GET", false}, "/dlq/resend": {"POST", true}, "/dlq/resend-selected": {"POST", true}, "/dlq/export": {"GET", false}, "/dlq/export-excel": {"GET", false},
 	"/acl/users": {"GET", false}, "/acl/users/page": {"GET", false}, "/acl/users/create": {"POST", true}, "/acl/users/update": {"POST", true}, "/acl/users/delete": {"POST", true},
 	"/acl/rules": {"GET", false}, "/acl/rules/create": {"POST", true}, "/acl/rules/update": {"POST", true}, "/acl/rules/delete": {"POST", true},
-	"/acl/cluster-config": {"GET", false}, "/acl/plain-access-config": {"POST", true},
+	"/acl/users/:id/credentials": {"GET", false},
+	"/acl/cluster-config":        {"GET", false}, "/acl/plain-access-config": {"POST", true},
 	"/clients": {"GET", false}, "/producer/groups": {"GET", false}, "/producer/connection": {"GET", false},
 	"/metrics/profiles": {"GET", false}, "/metrics/query": {"POST", false},
 }

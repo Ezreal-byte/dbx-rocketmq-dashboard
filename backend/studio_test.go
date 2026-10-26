@@ -135,7 +135,7 @@ func TestStudioIntegration(t *testing.T) {
 	for _, path := range []string{"/clusters/" + s.clusterName, "/clusters/" + s.clusterName + "/broker-config-diff", "/nameservers/config-diff"} {
 		studioCall(t, s, path, map[string]any{"clusterId": s.clusterName})
 	}
-	if os.Getenv("ROCKETMQ_VERSION") == "5.3.3" {
+	if strings.HasPrefix(os.Getenv("ROCKETMQ_VERSION"), "5.") {
 		studioCall(t, s, "/acl/users/page", nil)
 		studioCall(t, s, "/acl/rules", nil)
 	}

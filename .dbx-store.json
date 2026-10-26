@@ -4,8 +4,8 @@
   "icon": "assets/rocketmq.svg",
   "tags": ["rocketmq", "dashboard", "message-queue"],
   "permissions": ["host.workbench"],
-  "source": "https://github.com/Ezreal-byte/dbx-rocketmq-dashboard/tree/v0.3.1",
+  "source": "https://github.com/Ezreal-byte/dbx-rocketmq-dashboard/tree/v0.3.2",
   "homepage": "https://github.com/Ezreal-byte/dbx-rocketmq-dashboard",
   "license": "Apache-2.0",
-  "releaseNotes": "修复 #1：Topic 总数正常但表格为空。统一资源返回的 instanceId 与原生 Studio 的连接名称标识，覆盖普通、SOCKS5 代理及连接名称为空的情况；新增五个 Topic 的分页可见性回归。"
+  "releaseNotes": "修复 #2：ACL 允许/拒绝误显示、通配符规则编辑及策略删除定位；增加来源 IP 白名单、用户 Secret Key 编辑与具体 Broker 错误反馈，保留已禁用用户状态。新增真实 RocketMQ 5.5.0 和 SOCKS5 ACL 回归。"
 }
